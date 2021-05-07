@@ -85,18 +85,14 @@ end
 
 lemma le_of_succ_le_succ {a b : mynat} (h : a.succ ≤ b.succ) : a ≤ b := pred_le_pred h
 
-lemma le_of_lt {a b: mynat} (h : a < b) : a ≤ b := le_of_succ_le h
-
 lemma succ_ne_zero (n : mynat) : n.succ ≠ zero
 .
 
-lemma zero_lt_of_ne_zero (a : mynat) (h : a ≠ zero) : zero < a :=
+lemma succ_ne_self (a : mynat) : a.succ ≠ a :=
 begin
-  induction a with a ih,
-  { contradiction, },
-  { by_cases h₂ : a = zero,
-    { rw h₂, change zero.succ ≤ zero.succ, refl, },
-    { apply le.step, apply ih, exact h₂, }, }, 
+  induction a,
+  case zero { exact succ_ne_zero _, },
+  case succ : a ih { intro h₂, apply ih, exact mynat.no_confusion h₂ id },
 end
 
 lemma not_succ_le_zero : ∀ (n : mynat), succ n ≤ zero → false
@@ -110,11 +106,16 @@ begin
   { apply ih, exact le_of_succ_le_succ h, }
 end
 
-lemma succ_ne_self (a : mynat) : a.succ ≠ a :=
+/-
+Extra results
+-/
+lemma zero_lt_of_ne_zero (a : mynat) (h : a ≠ zero) : zero < a :=
 begin
-  induction a,
-  case zero { exact succ_ne_zero _, },
-  case succ : a ih { intro h₂, apply ih, exact mynat.no_confusion h₂ id },
+  induction a with a ih,
+  { contradiction, },
+  { by_cases h₂ : a = zero,
+    { rw h₂, change zero.succ ≤ zero.succ, refl, },
+    { apply le.step, apply ih, exact h₂, }, }, 
 end
 
 lemma succ_pos (a : mynat) : zero < a.succ := zero_lt_of_ne_zero _ (succ_ne_zero _)
