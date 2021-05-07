@@ -68,13 +68,7 @@ match h₁, h₂ with
 | (is_false _),  h₂ := false.elim h₂
 end
 
-instance decidable_eq_self {α} (x : α) : decidable (x = x) := is_true rfl
-
 open mynat
-
-example (a : nat) : 0 < a.succ := nat.succ_pos a
-
-example (a : nat) : ¬(nat.succ a ≤ a) := nat.not_succ_le_self a
 
 instance decidable_mynat_le : ∀ a b : mynat, decidable (a ≤ b) :=
 begin
@@ -118,9 +112,5 @@ end
 example : (15 : mynat) = 5+10 := of_as_true (by trivial)
 
 example : (5 : mynat) ≠ 20 := of_as_true (by trivial)
-
-instance decidable_iff_self (p : Prop) : decidable (p ↔ p) := is_true iff.rfl
-
-example (p q : Prop) : as_true (p ∧ q ↔ p ∧ q) := trivial
 
 end hidden
