@@ -60,6 +60,8 @@ example (p q : Prop) [decidable p] [decidable q] : decidable $ (p ∧ q) → q :
 
 def ite (c : Prop) [d : decidable c] {α} (t e : α) : α := decidable.rec_on d (λ hnc, e) (λ hc, t)
 
+instance decidable_eq_self {α} (x : α) : decidable (x = x) := is_true rfl
+
 def as_true (c : Prop) [decidable c] : Prop := ite c true false
 
 def of_as_true {c : Prop} [h₁ : decidable c] (h₂ : as_true c) : c :=
@@ -70,9 +72,8 @@ end
 
 open mynat
 
-instance decidable_mynat_le : ∀ a b : mynat, decidable (a ≤ b) :=
+instance decidable_mynat_le (a : mynat) : ∀ b : mynat, decidable (a ≤ b) :=
 begin
-  intro a,
   induction a with a ha,
   { intro b, apply is_true, apply mynat.zero_le, },
   { intro b,
@@ -92,9 +93,8 @@ instance decidable_eq_zero : ∀ (y : mynat) , decidable (zero = y)
 | (succ _)  := is_false (succ_ne_zero _).symm
 
 
-instance decidable_eq: ∀ x y : mynat, decidable (x = y) :=
+instance decidable_eq (x : mynat) : ∀ y : mynat, decidable (x = y) :=
 begin
-  intro x,
   induction x,
   case zero { apply_instance, },
   case succ : x h
@@ -109,8 +109,70 @@ begin
       { apply is_false, intro h₃, rw succ.inj_eq at h₃, rw h₃ at h₂, exact mynat.succ_ne_self _ h₂, }, } }
 end
 
-example : (15 : mynat) = 5+10 := of_as_true (by trivial)
+lemma fifteen_eq_five_plus_ten : (15 : mynat) = 5+10 := of_as_true (by trivial)
+
+--set_option pp.all true
+
+--#print fifteen_eq_five_plus_ten
 
 example : (5 : mynat) ≠ 20 := of_as_true (by trivial)
 
 end hidden
+
+lemma foo : ite (5 = 6) 10 20 = 20 := rfl
+
+lemma bar : ite (5 ≠ 6) 10 20 = 10 := rfl
+
+lemma bar' : (if (5 ≠ 6) then 10 else 20) = 10 := rfl
+
+example : decidable (5 = 6) := nat.decidable_eq 5 6
+
+lemma decidable_not (p : Prop) [decidable p] : decidable ¬p :=
+dite p (λ (h : p), decidable.is_false $ λ (hn : ¬p), hn h) (λ (h : ¬p) , decidable.is_true h)
+
+lemma em' (p : Prop) [decidable p] : p ∨ ¬p := dite p (λ hp, or.inl hp) (λ hnp, or.inr hnp)
+
+lemma em'' (p : Prop) [decidable p] : p ∨ ¬p := if hp : p then or.inl hp else or.inr hp
+
+lemma boo (p : Prop) [decidable p] : p ∨ ¬p := if hp : p then or.inl hp else or.inr hp
+
+def mod : ℕ → ℕ → ℕ
+| a 0       := a
+| a (b + 1)   :=  
+if h : a < (b + 1) then a else
+  have a - (b + 1) < a, from nat.sub_lt (show 0 < a, by linarith) (show 0 < (b+1), by linarith),
+  mod (a - (b + 1)) (b + 1)
+
+lemma zero_mod_eq_zero (a : ℕ) : mod 0 a = 0 := by { induction a with a ha; rw mod, { rw if_pos, linarith, } }
+
+def modulo_core (y : ℕ) : ℕ → ℕ → ℕ
+| 0 x := x
+| (fuel+1) x := if h : 0 < y ∧ y ≤ x then modulo_core fuel (x - y) else x
+
+def modulo (x y : ℕ) : ℕ :=
+modulo_core y x x
+
+lemma modulo_aux {f : ℕ} : ∀ y x : ℕ, x ≤ y * f → modulo_core y f x = mod x y :=
+begin
+  induction f with f hf; intros y x h,
+  { rw [(show x = 0, from nat.eq_zero_of_le_zero h), modulo_core, zero_mod_eq_zero], },
+  { induction y with y hy,
+    { rw zero_mul at h, rw [(show x = 0, from nat.eq_zero_of_le_zero h), modulo_core, if_neg, mod],
+      intro _, linarith, },
+    { rw [modulo_core], simp only [nat.succ_eq_add_one] at h ⊢,
+      by_cases h₂ : y + 1 ≤ x,
+      {  rw if_pos, rw [mod, if_neg], 
+        apply hf (y+1) (x-(y+1)), 
+        rw nat.sub_le_right_iff_le_add, convert h, linarith, split; linarith, },
+      { rw if_neg, rw [mod, if_pos], linarith, intro h₃, linarith, }, }, }
+end
+
+lemma modulo_zero (x : ℕ) : modulo x 0 = x :=
+by { induction x; rw [modulo, modulo_core], { rw if_neg, intro h, linarith, } }
+
+theorem modulo_eq_mod (x y : ℕ) : modulo x y = mod x y :=
+begin
+  cases nat.eq_zero_or_eq_succ_pred y with h h,
+  { rw [h, mod, modulo_zero],  },
+  { apply modulo_aux, rw [h, nat.succ_eq_add_one, add_mul], simp, }
+end
