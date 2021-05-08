@@ -142,37 +142,3 @@ def mod : ℕ → ℕ → ℕ
 if h : a < (b + 1) then a else
   have a - (b + 1) < a, from nat.sub_lt (show 0 < a, by linarith) (show 0 < (b+1), by linarith),
   mod (a - (b + 1)) (b + 1)
-
-lemma zero_mod_eq_zero (a : ℕ) : mod 0 a = 0 := by { induction a with a ha; rw mod, { rw if_pos, linarith, } }
-
-def modulo_core (y : ℕ) : ℕ → ℕ → ℕ
-| 0 x := x
-| (fuel+1) x := if h : 0 < y ∧ y ≤ x then modulo_core fuel (x - y) else x
-
-def modulo (x y : ℕ) : ℕ :=
-modulo_core y x x
-
-lemma modulo_aux {f : ℕ} : ∀ y x : ℕ, x ≤ y * f → modulo_core y f x = mod x y :=
-begin
-  induction f with f hf; intros y x h,
-  { rw [(show x = 0, from nat.eq_zero_of_le_zero h), modulo_core, zero_mod_eq_zero], },
-  { induction y with y hy,
-    { rw zero_mul at h, rw [(show x = 0, from nat.eq_zero_of_le_zero h), modulo_core, if_neg, mod],
-      intro _, linarith, },
-    { rw [modulo_core], simp only [nat.succ_eq_add_one] at h ⊢,
-      by_cases h₂ : y + 1 ≤ x,
-      {  rw if_pos, rw [mod, if_neg], 
-        apply hf (y+1) (x-(y+1)), 
-        rw nat.sub_le_right_iff_le_add, convert h, linarith, split; linarith, },
-      { rw if_neg, rw [mod, if_pos], linarith, intro h₃, linarith, }, }, }
-end
-
-lemma modulo_zero (x : ℕ) : modulo x 0 = x :=
-by { induction x; rw [modulo, modulo_core], { rw if_neg, intro h, linarith, } }
-
-theorem modulo_eq_mod (x y : ℕ) : modulo x y = mod x y :=
-begin
-  cases nat.eq_zero_or_eq_succ_pred y with h h,
-  { rw [h, mod, modulo_zero],  },
-  { apply modulo_aux, rw [h, nat.succ_eq_add_one, add_mul], simp, }
-end
