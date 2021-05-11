@@ -62,6 +62,10 @@ def ite (c : Prop) [d : decidable c] {α} (t e : α) : α := decidable.rec_on d 
 
 instance decidable_eq_self {α} (x : α) : decidable (x = x) := is_true rfl
 
+example : ite (5 = 5) true false := trivial
+
+example : ¬(ite (5 ≠ 5) true false) := false.elim 
+
 def as_true (c : Prop) [decidable c] : Prop := ite c true false
 
 def of_as_true {c : Prop} [h₁ : decidable c] (h₂ : as_true c) : c :=
@@ -69,6 +73,8 @@ match h₁, h₂ with
 | (is_true hc),  h₂ := hc
 | (is_false _),  h₂ := false.elim h₂
 end
+
+example : decidable (5 ≠ 5) := infer_instance
 
 open mynat
 
@@ -80,13 +86,27 @@ begin
     induction b with b hb,
     { apply is_false, apply not_succ_le_zero, },
     { cases ha b with h h,
-      { apply is_false, intro h₂, apply h, exact le_of_succ_le_succ h₂, },
+      { apply is_false, intro h₂,
+        apply h, exact le_of_succ_le_succ h₂, },
       { apply is_true, exact succ_le_succ_of_le h, }, } },
 end
 
-example : as_true ((20 : mynat) ≤ 30) := trivial
+example : ite ((20 : mynat) ≤ 30) true false := trivial
+
+
+example : ¬ ite ((30 : mynat) ≤ 20 ) true false := false.elim
+
+example (x : mynat) : ite (((5 : mynat) ≤ 6) ∧ (x = x)) true false := trivial
+
+example (x : mynat) : as_true (((5 : mynat) ≤ 6) ∧ (x = x))  := trivial
+
+example : as_true ((50 : mynat) ≤ 60) := trivial
 
 example : as_true ((0 : mynat) ≤ 5) = true := rfl
+
+example : (20 : mynat) ≤ 30 ∧ (5 : mynat) = 5:= of_as_true trivial
+
+example [h₁ : decidable (5 ≠ 5)] (h₂ : as_true (5 ≠ 5)) : 5 ≠ 5 := of_as_true h₂
 
 instance decidable_eq_zero : ∀ (y : mynat) , decidable (zero = y)
 | zero      := is_true rfl
@@ -142,3 +162,5 @@ def mod : ℕ → ℕ → ℕ
 if h : a < (b + 1) then a else
   have a - (b + 1) < a, from nat.sub_lt (show 0 < a, by linarith) (show 0 < (b+1), by linarith),
   mod (a - (b + 1)) (b + 1)
+
+  example : (5 ≠ 7) ∧ (10 ≤ 20) := dec_trivial
