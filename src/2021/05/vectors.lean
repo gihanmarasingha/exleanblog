@@ -69,12 +69,11 @@ def add_vec : Π {n : ℕ} (v₁ v₂ : vector ℕ n), vector ℕ n
 | (n+1)   ⟨x :: v₁, p₁⟩  ⟨y :: v₂, p₂⟩  :=
 (x + y) ::ᵥ (@add_vec n ⟨v₁, nat.succ.inj p₁⟩ ⟨v₂, nat.succ.inj p₂ ⟩)
 
-
 example : add_vec  ⟨[0,1,2],rfl⟩ ⟨[5,6,7],rfl⟩ = ⟨[5,7,9], rfl⟩ := rfl
 
 lemma nth_add_nth : Π {n : ℕ} (v₁ v₂ : vector ℕ n) (a : fin n), v₁.nth a + v₂.nth a = (add_vec v₁ v₂).nth a
 | 0 _ _ ⟨a, p⟩ := absurd p (nat.not_lt_zero a)
-| (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨0, h⟩ := by { simp [vector.nth, add_vec], }
+| (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨0, h⟩ := by { simp only [vector.nth, add_vec, fin.mk_zero, fin.val_zero', vector.nth_cons_zero, nth_le], }
 | (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨a+1,h⟩ :=
 begin
   have ha : (⟨a+1,h⟩ : fin (n+1)) = fin.succ (⟨a, nat.succ_lt_succ_iff.mp h⟩), from rfl,
@@ -83,7 +82,6 @@ begin
   have h₂ : (⟨y :: v₂, p₂⟩ : vector ℕ (n+1)) = y ::ᵥ ⟨v₂, nat.succ.inj p₂⟩, { rw vector.cons, refl, },
   rw [h₁, h₂, vector.nth_cons_succ, vector.nth_cons_succ]
 end
-
 
 end extras
 
@@ -103,13 +101,11 @@ lemma nth_add_nth : Π {n : ℕ} (v₁ v₂ : vector α n) (a : fin n), v₁.nth
 | (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨0, h⟩ := by { simp [vector.nth, add_vec], }
 | (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨a+1,h⟩ :=
 begin
-  have ha : (⟨a+1,h⟩ : fin (n+1)) = fin.succ (⟨a, nat.succ_lt_succ_iff.mp h⟩), from rfl,
+  have ha : (⟨a+1,h⟩ : fin (n+1)) = fin.succ (⟨a, nat.lt_of_succ_lt_succ h⟩), from rfl,
   rw [ha, add_vec, vector.nth_cons_succ, ←@nth_add_nth n],
   have h₁ : (⟨x :: v₁, p₁⟩ : vector α (n+1)) = x ::ᵥ ⟨v₁, nat.succ.inj p₁⟩, { rw vector.cons, refl, },
   have h₂ : (⟨y :: v₂, p₂⟩ : vector α (n+1)) = y ::ᵥ ⟨v₂, nat.succ.inj p₂⟩, { rw vector.cons, refl, },
   rw [h₁, h₂, vector.nth_cons_succ, vector.nth_cons_succ]
 end
-
-
 
 end generalisation
