@@ -21,7 +21,7 @@ def zero_vec (n : ℕ) : vector ℝ n := ⟨zero_list n, list.length_repeat 0 n�
 
 example : Π (m : ℕ), vector ℝ m := zero_vec
 
-section extras
+namespace extras
 
 def myvec' : vector ℕ 5 :=
 { val := [5,10,15,20,25],
@@ -86,3 +86,30 @@ end
 
 
 end extras
+
+namespace generalisation
+
+open list
+
+variables {α : Type*} [has_add α]
+
+def add_vec : Π {n : ℕ} (v₁ v₂ : vector α n), vector α n
+| 0       _              _             := ⟨[],rfl⟩
+| (n+1)   ⟨x :: v₁, p₁⟩  ⟨y :: v₂, p₂⟩  :=
+(x + y) ::ᵥ (@add_vec n ⟨v₁, nat.succ.inj p₁⟩ ⟨v₂, nat.succ.inj p₂ ⟩)
+
+lemma nth_add_nth : Π {n : ℕ} (v₁ v₂ : vector α n) (a : fin n), v₁.nth a + v₂.nth a = (add_vec v₁ v₂).nth a
+| 0 _ _ ⟨a, p⟩ := absurd p (nat.not_lt_zero a)
+| (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨0, h⟩ := by { simp [vector.nth, add_vec], }
+| (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨a+1,h⟩ :=
+begin
+  have ha : (⟨a+1,h⟩ : fin (n+1)) = fin.succ (⟨a, nat.succ_lt_succ_iff.mp h⟩), from rfl,
+  rw [ha, add_vec, vector.nth_cons_succ, ←@nth_add_nth n],
+  have h₁ : (⟨x :: v₁, p₁⟩ : vector α (n+1)) = x ::ᵥ ⟨v₁, nat.succ.inj p₁⟩, { rw vector.cons, refl, },
+  have h₂ : (⟨y :: v₂, p₂⟩ : vector α (n+1)) = y ::ᵥ ⟨v₂, nat.succ.inj p₂⟩, { rw vector.cons, refl, },
+  rw [h₁, h₂, vector.nth_cons_succ, vector.nth_cons_succ]
+end
+
+
+
+end generalisation
