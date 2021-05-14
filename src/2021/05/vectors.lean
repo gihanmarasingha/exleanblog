@@ -68,25 +68,11 @@ def const_vec' {α} (c : α) (n : ℕ) : vector α n := ⟨list.repeat c n, list
 
 open list
 
--- Rewrite the function below using vector cons `::ᵥ`.
-/- def add_vec' {n : ℕ} (v₁ v₂ : vector ℕ n) : vector ℕ n :=
-begin
-  induction n with n hn,
-  { exact ⟨[],rfl⟩ },
-  { rcases v₁ with ⟨_ | ⟨x, xs⟩, p₁⟩,
-    { simp only [length] at p₁, contradiction },
-    rcases v₂ with ⟨_ | ⟨y, ys⟩, p₂⟩,
-    { simp only [length] at p₂, contradiction },
-    have h₁ : length xs = n, { simp [length] at p₁, exact p₁, },
-    have h₂ : length ys = n, { simp [length] at p₂, exact p₂, },
-    cases hn ⟨xs, h₁⟩ ⟨ys, h₂⟩ with v₃ p₃,
-    exact ⟨(x+y) :: v₃, by { rw ←p₃, simp }⟩ },
-end -/
-
 def add_vec : Π {n : ℕ} (v₁ v₂ : vector ℕ n), vector ℕ n
 | 0       _              _             := ⟨[],rfl⟩
 | (n+1)   ⟨x :: v₁, p₁⟩  ⟨y :: v₂, p₂⟩  :=
-(x + y) ::ᵥ (@add_vec n ⟨v₁, by { simp [length] at p₁, exact p₁} ⟩ ⟨v₂, by {simp [length] at p₂, exact p₂} ⟩)
+(x + y) ::ᵥ (@add_vec n ⟨v₁, nat.succ.inj p₁⟩ ⟨v₂, nat.succ.inj p₂ ⟩)
+
 
 /- lemma boo {n : ℕ} (v₁ v₂ : vector ℕ n) (x y : ℕ) (a : fin n) :
 (add_vec (x ::ᵥ v₁) (y ::ᵥ v₂)).nth abs_le_abs = 
