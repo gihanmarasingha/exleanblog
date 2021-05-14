@@ -29,7 +29,7 @@ def myvec' : vector ℕ 5 :=
 
 def two : fin 5 := ⟨2, dec_trivial⟩
 
-#reduce vector.nth myvec' 2
+-- #reduce vector.nth myvec' 2
 
 def zero_list' : ℕ → list ℝ
 | 0       := []
@@ -60,11 +60,7 @@ universe u
 
 def const_vec (c : ℝ) (n : ℕ) : vector ℝ n := ⟨list.repeat c n, list.length_repeat c n⟩
 
-#check const_vec
-
 def const_vec' {α} (c : α) (n : ℕ) : vector α n := ⟨list.repeat c n, list.length_repeat c n⟩
-
-#check @const_vec
 
 open list
 
@@ -74,16 +70,19 @@ def add_vec : Π {n : ℕ} (v₁ v₂ : vector ℕ n), vector ℕ n
 (x + y) ::ᵥ (@add_vec n ⟨v₁, nat.succ.inj p₁⟩ ⟨v₂, nat.succ.inj p₂ ⟩)
 
 
-/- lemma boo {n : ℕ} (v₁ v₂ : vector ℕ n) (x y : ℕ) (a : fin n) :
-(add_vec (x ::ᵥ v₁) (y ::ᵥ v₂)).nth abs_le_abs = 
- -/
 example : add_vec  ⟨[0,1,2],rfl⟩ ⟨[5,6,7],rfl⟩ = ⟨[5,7,9], rfl⟩ := rfl
 
-/- example {n : ℕ} (v₁ v₂ : vector ℕ n) (a : fin n) : v₁.nth a + v₂.nth a = (add_vec v₁ v₂).nth a :=
+lemma nth_add_nth : Π {n : ℕ} (v₁ v₂ : vector ℕ n) (a : fin n), v₁.nth a + v₂.nth a = (add_vec v₁ v₂).nth a
+| 0 _ _ ⟨a, p⟩ := absurd p (nat.not_lt_zero a)
+| (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨0, h⟩ := by { simp [vector.nth, add_vec], }
+| (n+1) ⟨x :: v₁, p₁⟩ ⟨y :: v₂, p₂⟩ ⟨a+1,h⟩ :=
 begin
-  induction n with n hn,
-  { cases a, linarith, },
-  { sorry }
-end  -/
+  have ha : (⟨a+1,h⟩ : fin (n+1)) = fin.succ (⟨a, nat.succ_lt_succ_iff.mp h⟩), from rfl,
+  rw [ha, add_vec, vector.nth_cons_succ, ←@nth_add_nth n],
+  have h₁ : (⟨x :: v₁, p₁⟩ : vector ℕ (n+1)) = x ::ᵥ ⟨v₁, nat.succ.inj p₁⟩, { rw vector.cons, refl, },
+  have h₂ : (⟨y :: v₂, p₂⟩ : vector ℕ (n+1)) = y ::ᵥ ⟨v₂, nat.succ.inj p₂⟩, { rw vector.cons, refl, },
+  rw [h₁, h₂, vector.nth_cons_succ, vector.nth_cons_succ]
+end
+
 
 end extras
