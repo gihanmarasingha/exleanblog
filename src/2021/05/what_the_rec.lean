@@ -4,8 +4,10 @@ namespace exlean
 
 open nat
 
+section induction_on_nat
+
 @[elab_as_eliminator]
-lemma nat_ind (P : ℕ → Prop) (n : ℕ)  (h₀ : P 0) (h₁ : ∀ (k : ℕ), P k → P k.succ) : P n :=
+def nat.ind (P : ℕ → Prop) (n : ℕ)  (h₀ : P 0) (h₁ : ∀ (k : ℕ), P k → P k.succ) : P n :=
 nat.rec_on n h₀ h₁
 
 lemma add_zero (a : ℕ) : a + 0 = a := rfl
@@ -26,7 +28,7 @@ begin
   rw ih, -- ⊢ succ k = succ k
 end
 
-lemma zero_add (a : ℕ) : 0 + a = a := nat_ind P a base ind_step
+lemma zero_add (a : ℕ) : 0 + a = a := nat.ind P a base ind_step
 
 lemma zero_add' (a : ℕ) : 0 + a = a :=
 begin
@@ -34,12 +36,12 @@ begin
   have h₀ : P 0, { dsimp [P], refl, },
   have h₁ : ∀ (k : ℕ), P k → P k.succ,
   { dsimp [P], intros k ih, rw add_succ, rw ih, },
-  exact nat_ind P a h₀ h₁
+  exact nat.ind P a h₀ h₁
 end
 
 lemma zero_add'' (a : ℕ) : 0 + a = a :=
 begin
-  apply nat_ind (λ k, 0 + k = k),
+  apply nat.ind (λ k, 0 + k = k),
   { refl, },
   { intros k ih, rw [add_succ, ih], },
 end
@@ -49,7 +51,7 @@ lemma zero_add''' : ∀ a : ℕ, 0 + a = a := @nat.rec (λ k, 0 + k = k) rfl (λ
   have h₃ : succ (0 + k) = succ k := ih.symm ▸ rfl,
   eq.trans h₂ h₃)
 
-lemma zero_add'''' (a : ℕ) : 0 + a = a := nat_ind _ a rfl
+lemma zero_add'''' (a : ℕ) : 0 + a = a := nat.ind _ a rfl
 (λ k ih, eq.trans (add_succ 0 k) (ih.symm ▸ rfl))
 
 lemma zero_add''''' (a : ℕ) : 0 + a = a := nat.rec_on a rfl (λ k ih, 
@@ -57,59 +59,71 @@ lemma zero_add''''' (a : ℕ) : 0 + a = a := nat.rec_on a rfl (λ k ih,
   have h₃ : succ (0 + k) = succ k := ih.symm ▸ rfl,
   eq.trans h₂ h₃)
 
-universe u
+end induction_on_nat
 
-@[elab_as_eliminator]
-lemma nat_rec_on {C : ℕ → Sort u} (n : ℕ) (h₀ : C 0) (h₁ : ∀ (k : ℕ), C k → C k.succ) : C n :=
+section recursively_defined_sequences_of_ints
+
+-- Here is recursion principle for defining sequences of integers.
+def nat.int_seq (n : ℕ) (h₀ : ℤ) (h₁ : ∀ (k : ℕ), ℤ → ℤ) : ℤ :=
 nat.rec_on n h₀ h₁
 
-abbreviation C := λ (k : ℕ), ℕ
+-- The following is a sequence of integers with `a₀ = 6` and `aₙ₊₁ = 5 + 2 * aₙ`.
+def seq1 (n : ℕ) : ℤ := nat.int_seq n (6 : ℤ) (λ k seq_k, 5 + 2 * seq_k)
 
-example : ∀ (k : ℕ), (C k) = (C (succ k)) := λ k, rfl
+lemma seq1_succ (n : ℕ) : seq1 (succ n) = 5 + 2 * (seq1 n) := rfl
+
+-- We can easily prove a formula for the n-th term of the sequence.
+lemma seq1_formula (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
+begin
+  induction n with n ih,
+  { refl, },
+  { rw [seq1_succ, ih], ring_exp, }
+end
+
+-- Here's another sequence.
+def triangle (n : ℕ) : ℤ := nat.int_seq n 0 (λ k seq_k, k + seq_k)
+
+end recursively_defined_sequences_of_ints
+
+section recursively_defined_sequences_of_nats
+
+-- Here's a principle for defining sequences of natural numbers.
+def nat.nat_seq (n : ℕ) (h₀ : ℕ) (h₁ : ∀ (k : ℕ), ℕ → ℕ) : ℕ :=
+nat.rec_on n h₀ h₁
 
 -- The following sequence is `a₀ = 6` and `aₙ₊₁ = 5 + 2 * aₙ`.
-def myseq (n : ℕ) : ℕ := @nat.rec_on (λ k, ℕ) n 6 (λ k seq_k, 5 + 2 * (seq_k))
+def seq2 (n : ℕ) : ℕ := nat.nat_seq n 6 (λ k seq_k, 5 + 2 * seq_k)
 
-lemma myseq_succ (n : ℕ) : myseq (succ n) = 5 + 2 * (myseq n) := rfl
+lemma seq2_succ (n : ℕ) : seq2 (succ n) = 5 + 2 * (seq2 n) := rfl
 
-lemma myseq_formula' (n : ℕ) : 5 + myseq n = 11 * 2 ^ n :=
+-- Proving a formula is tricker in the ℕ case than in the ℤ case.
+-- One approach is to use an auxiliary result.
+lemma seq2_formula' (n : ℕ) : 5 + seq2 n = 11 * 2 ^ n :=
 begin
   induction n with n ih,
   { refl, },
   { have h : ∀ a, 5 + (5 + 2 * a) = 2 * (5 + a), { intro a, ring },
-    simp only [myseq_succ, h, ih], ring_exp, }
+    simp only [seq2_succ, h, ih], ring_exp, }
 end
 
-lemma myseq_formula (n : ℕ) : myseq n = 11 * 2 ^ n - 5 :=
+lemma seq2_formula (n : ℕ) : seq2 n = 11 * 2 ^ n - 5 :=
 begin
   symmetry,
   apply nat.sub_eq_of_eq_add,
-  rw ←myseq_formula',
+  rw ←seq2_formula',
 end
 
--- Here's another way to write the sequence.
-def myseq2 (n : ℕ) : ℕ := nat.rec_on n 6 (λ k seq_k, 3 + 2 * (succ seq_k))
+end recursively_defined_sequences_of_nats
 
-lemma myseq2_succ (n : ℕ) : myseq2 (succ n) = 3 + 2 * (succ (myseq2 n)) := rfl
+universe u
 
-lemma myseq2_formula' (n : ℕ) : 5 + myseq2 n = 11 * 2 ^ n:=
-begin
-  induction n with n ih,
-  { refl, },
-  { have h : ∀ a, 5 + (3 + 2 * (succ a)) = 2 * (5 + a), { intro a, ring, },
-    simp only [myseq2_succ, h, ih], ring_exp, },
-end
+section recursion_in_general
 
-lemma myseq2_formula (n : ℕ) : myseq2 n = 11 * 2 ^ n - 5 :=
-begin
-  symmetry,
-  apply nat.sub_eq_of_eq_add,
-  rw ←myseq2_formula',
-end
+@[elab_as_eliminator]
+def nat.rec_on' {C : ℕ → Sort u} (n : ℕ) (h₀ : C 0) (h₁ : ∀ (k : ℕ), C k → C k.succ) : C n :=
+nat.rec_on n h₀ h₁
 
-def myseq3 (n : ℕ) : ℕ := nat.rec_on n 0 (λ k seq_k, k + succ seq_k)
-
-def myseq4 (n : ℕ) : vector ℕ n := nat.rec_on n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
+def seq (n : ℕ) : ℕ := nat.rec_on' n 6 (λ k seq_k, 5 + 2 * seq_k)
 
 def add_one (n : ℕ) : ℕ := nat.rec_on n 1 (λ k ih, succ ih)
 
@@ -126,6 +140,8 @@ def myadd (m n : ℕ) : ℕ := nat.rec_on n m (λ k ih, succ ih)
 example : myadd 11 5 = 16 := rfl
 
 example : ∀ n, add_two n = myadd 2 n := λ n, rfl
+
+end recursion_in_general
 
 inductive le (a : ℕ) : ℕ → Prop
 | refl : le a
