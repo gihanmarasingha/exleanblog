@@ -68,19 +68,16 @@ abbreviation C := λ (k : ℕ), ℕ
 example : ∀ (k : ℕ), (C k) = (C (succ k)) := λ k, rfl
 
 -- The following sequence is `a₀ = 6` and `aₙ₊₁ = 5 + 2 * aₙ`.
-def myseq' (n : ℕ) : ℕ := @nat.rec_on (λ k, ℕ) n 6 (λ k seq_k, 5 + 2 * (seq_k))
+def myseq (n : ℕ) : ℕ := @nat.rec_on (λ k, ℕ) n 6 (λ k seq_k, 5 + 2 * (seq_k))
 
--- Here's another way to write the sequence.
-def myseq (n : ℕ) : ℕ := nat.rec_on n 6 (λ k seq_k, 3 + 2 * (succ seq_k))
+lemma myseq_succ (n : ℕ) : myseq (succ n) = 5 + 2 * (myseq n) := rfl
 
-lemma myseq_succ (n : ℕ) : myseq (succ n) = 3 + 2 * (succ (myseq n)) := rfl
-
-lemma myseq_formula' (n : ℕ) : 5 + myseq n = 11 * 2 ^ n:=
+lemma myseq_formula' (n : ℕ) : 5 + myseq n = 11 * 2 ^ n :=
 begin
   induction n with n ih,
   { refl, },
-  { have h : ∀ a, 5 + (3 + 2 * (succ a)) = 2 * (5 + a), { intro a, ring, },
-    simp only [myseq_succ, h, ih], ring_exp, },
+  { have h : ∀ a, 5 + (5 + 2 * a) = 2 * (5 + a), { intro a, ring },
+    simp only [myseq_succ, h, ih], ring_exp, }
 end
 
 lemma myseq_formula (n : ℕ) : myseq n = 11 * 2 ^ n - 5 :=
@@ -90,9 +87,29 @@ begin
   rw ←myseq_formula',
 end
 
-def myseq2 (n : ℕ) : ℕ := nat.rec_on n 0 (λ k seq_k, k + succ seq_k)
+-- Here's another way to write the sequence.
+def myseq2 (n : ℕ) : ℕ := nat.rec_on n 6 (λ k seq_k, 3 + 2 * (succ seq_k))
 
-lemma myseq3 (n : ℕ) : vector ℕ n := nat.rec_on n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
+lemma myseq2_succ (n : ℕ) : myseq2 (succ n) = 3 + 2 * (succ (myseq2 n)) := rfl
+
+lemma myseq2_formula' (n : ℕ) : 5 + myseq2 n = 11 * 2 ^ n:=
+begin
+  induction n with n ih,
+  { refl, },
+  { have h : ∀ a, 5 + (3 + 2 * (succ a)) = 2 * (5 + a), { intro a, ring, },
+    simp only [myseq2_succ, h, ih], ring_exp, },
+end
+
+lemma myseq2_formula (n : ℕ) : myseq2 n = 11 * 2 ^ n - 5 :=
+begin
+  symmetry,
+  apply nat.sub_eq_of_eq_add,
+  rw ←myseq2_formula',
+end
+
+def myseq3 (n : ℕ) : ℕ := nat.rec_on n 0 (λ k seq_k, k + succ seq_k)
+
+def myseq4 (n : ℕ) : vector ℕ n := nat.rec_on n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
 
 def add_one (n : ℕ) : ℕ := nat.rec_on n 1 (λ k ih, succ ih)
 
