@@ -119,7 +119,7 @@ lemma seq1_formula'' (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
 nat.ind _ n rfl (λ k ih, by {rw [seq1_succ, ih], ring_exp })
 
 -- Here's another sequence.
-def triangle (n : ℕ) : ℤ := nat.int_seq n 0 (λ k seq_k, k + seq_k)
+def triangle (n : ℕ) : ℤ := nat.int_seq n 0 (λ k ak, k + ak)
 
 lemma triangle_succ (n : ℕ) : triangle (succ n) = n + triangle n := rfl
 
@@ -165,6 +165,23 @@ end
 
 end recursively_defined_sequences_of_nats
 
+section sequences_of_vectors
+
+def nat.vec_seq_simple (n : ℕ) (h : ∀ (k : ℕ) (ak : vector ℕ k), vector ℕ (k+1)) : vector ℕ n :=
+  nat.rec_on n vector.nil h
+
+def vseq (n : ℕ) : vector ℕ n := nat.vec_seq_simple n (λ k ak, vector.cons (k*k) ak)
+
+def nat.vec_seq (n : ℕ) (a₀ : ℕ) (h : ∀ (k : ℕ) (ak : vector ℕ (k + 1)), vector ℕ (k + 2)) :
+  vector ℕ (n + 1) := nat.rec_on n ⟨[a₀], by simp⟩ h
+
+def vseq_triangle (n : ℕ) : vector ℕ (n + 1) :=
+  nat.vec_seq n 0 (λ k ak, vector.cons (k + ak.head) ak)
+
+example : ∃ h, vseq_triangle 5 = ⟨[10, 6, 3, 1, 0, 0], h⟩ := by simpa
+
+end sequences_of_vectors
+
 universe u
 
 section recursion_in_general
@@ -173,7 +190,7 @@ section recursion_in_general
 def nat.rec_on' {C : ℕ → Sort u} (n : ℕ) (h₀ : C 0) (h₁ : ∀ (k : ℕ), C k → C k.succ) : C n :=
 nat.rec_on n h₀ h₁
 
-def vseq (n : ℕ) : vector ℕ n := nat.rec_on' n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
+def vseq1 (n : ℕ) : vector ℕ n := nat.rec_on' n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
 
 def seq (n : ℕ) : ℕ := nat.rec_on' n 6 (λ k seq_k, 5 + 2 * seq_k)
 
