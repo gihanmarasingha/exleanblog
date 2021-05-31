@@ -86,14 +86,16 @@ nat.rec_on n a₀ h
 -- The following is a sequence of integers with `a₀ = 6` and `aₙ₊₁ = 5 + 2 * aₙ`.
 def seq1 (n : ℕ) : ℤ := nat.int_seq n (6 : ℤ) (λ k ak, 5 + 2 * ak)
 
-lemma seq1_succ (n : ℕ) : seq1 (succ n) = 5 + 2 * (seq1 n) := rfl
+lemma seq1_succ (k : ℕ) : seq1 (succ k) = 5 + 2 * (seq1 k) := rfl
+
+example : seq1 2 = 39 := dec_trivial
 
 -- We can easily prove a formula for the n-th term of the sequence.
 
 -- First using the `induction` tactic
 lemma seq1_formula (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
 begin
-  induction n with n ih,
+  induction n with k ih,
   { refl, },
   { rw [seq1_succ, ih], ring_exp, }
 end
@@ -108,8 +110,7 @@ end
 
 lemma seq1_formula''' (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
 begin
-  refine nat.ind _ n _ _,
-  { refl, },
+  refine nat.ind _ n rfl _,
   { intros k ih, rw [seq1_succ, ih], ring_exp, },
 end
 
