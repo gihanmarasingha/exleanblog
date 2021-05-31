@@ -6,7 +6,7 @@ open nat
 
 section induction_on_nat
 
-@[elab_as_eliminator]
+@[elab_as_eliminator, reducible]
 def nat.ind (P : ℕ → Prop) (n : ℕ)  (h₀ : P 0) (h₁ : ∀ (k : ℕ), P k → P k.succ) : P n :=
 nat.rec_on n h₀ h₁
 
@@ -138,7 +138,7 @@ end recursively_defined_sequences_of_ints
 section recursively_defined_sequences_of_nats
 
 -- Here's a principle for defining sequences of natural numbers.
-def nat.nat_seq (n : ℕ) (h₀ : ℕ) (h₁ : ∀ (k : ℕ), ℕ → ℕ) : ℕ :=
+def nat.nat_seq (n : ℕ) (h₀ : ℕ) (h₁ : Π (k : ℕ), ℕ → ℕ) : ℕ :=
 nat.rec_on n h₀ h₁
 
 -- The following sequence is `a₀ = 6` and `aₙ₊₁ = 5 + 2 * aₙ`.
@@ -172,13 +172,13 @@ def nat.vec_seq_simple (n : ℕ) (h : ∀ (k : ℕ) (ak : vector ℕ k), vector 
 
 def vseq (n : ℕ) : vector ℕ n := nat.vec_seq_simple n (λ k ak, vector.cons (k*k) ak)
 
-def nat.vec_seq (n : ℕ) (a₀ : ℕ) (h : ∀ (k : ℕ) (ak : vector ℕ (k + 1)), vector ℕ (k + 2)) :
-  vector ℕ (n + 1) := nat.rec_on n ⟨[a₀], by simp⟩ h
+def nat.vec_seq (n : ℕ) (a₀ : vector ℕ 1) (h : Π (k : ℕ) (ak : vector ℕ (k + 1)), vector ℕ (k + 2)) :
+  vector ℕ (n + 1) := nat.rec_on n a₀ h
 
 def vseq_triangle (n : ℕ) : vector ℕ (n + 1) :=
-  nat.vec_seq n 0 (λ k ak, vector.cons (k + ak.head) ak)
+  nat.vec_seq n ⟨[0], rfl⟩ (λ k ak, vector.cons (k + ak.head) ak)
 
-example : ∃ h, vseq_triangle 5 = ⟨[10, 6, 3, 1, 0, 0], h⟩ := by simpa
+example : vseq_triangle 5 = ⟨[10, 6, 3, 1, 0, 0], _⟩ := by simpa
 
 end sequences_of_vectors
 
@@ -186,7 +186,7 @@ universe u
 
 section recursion_in_general
 
-@[elab_as_eliminator]
+@[elab_as_eliminator, reducible]
 def nat.rec_on' {C : ℕ → Sort u} (n : ℕ) (h₀ : C 0) (h₁ : ∀ (k : ℕ), C k → C k.succ) : C n :=
 nat.rec_on n h₀ h₁
 
