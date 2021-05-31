@@ -46,6 +46,19 @@ begin
   { intros k ih, rw [add_succ, ih], },
 end
 
+lemma zero_add_apply_placeholder (a : ℕ) : 0 + a = a :=
+begin
+  apply nat.ind _ a,
+  { refl, },
+  { intros k ih, rw [add_succ, ih], },
+end
+
+lemma zero_add_refine (a : ℕ) : 0 + a = a :=
+begin
+  refine nat.ind _ a rfl _,
+  { intros k ih, rw [add_succ, ih], },
+end
+
 lemma zero_add''' : ∀ a : ℕ, 0 + a = a := @nat.rec (λ k, 0 + k = k) rfl (λ k ih, 
   have h₂ : 0 + succ k = succ (0 + k) := add_succ 0 k,
   have h₃ : succ (0 + k) = succ k := ih.symm ▸ rfl,
@@ -64,15 +77,20 @@ end induction_on_nat
 section recursively_defined_sequences_of_ints
 
 -- Here is recursion principle for defining sequences of integers.
-def nat.int_seq (n : ℕ) (h₀ : ℤ) (h₁ : ∀ (k : ℕ), ℤ → ℤ) : ℤ :=
-nat.rec_on n h₀ h₁
+/- def nat.int_seq (n : ℕ) (h₀ : ℤ) (h₁ : ∀ (k : ℕ), ℤ → ℤ) : ℤ :=
+nat.rec_on n h₀ h₁ -/
+
+def nat.int_seq (n : ℕ) (a₀ : ℤ) (h : ∀ (k : ℕ) (ak : ℤ), ℤ) : ℤ :=
+nat.rec_on n a₀ h
 
 -- The following is a sequence of integers with `a₀ = 6` and `aₙ₊₁ = 5 + 2 * aₙ`.
-def seq1 (n : ℕ) : ℤ := nat.int_seq n (6 : ℤ) (λ k seq_k, 5 + 2 * seq_k)
+def seq1 (n : ℕ) : ℤ := nat.int_seq n (6 : ℤ) (λ k ak, 5 + 2 * ak)
 
 lemma seq1_succ (n : ℕ) : seq1 (succ n) = 5 + 2 * (seq1 n) := rfl
 
 -- We can easily prove a formula for the n-th term of the sequence.
+
+-- First using the `induction` tactic
 lemma seq1_formula (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
 begin
   induction n with n ih,
@@ -80,8 +98,39 @@ begin
   { rw [seq1_succ, ih], ring_exp, }
 end
 
+-- Second, using `apply nat.ind`.
+lemma seq1_formula' (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
+begin
+  apply nat.ind (λ n, seq1 n = 11 * 2 ^ n - 5),
+  { refl, },
+  { intros k ih, rw [seq1_succ, ih], ring_exp, },
+end
+
+lemma seq1_formula''' (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
+begin
+  refine nat.ind _ n _ _,
+  { refl, },
+  { intros k ih, rw [seq1_succ, ih], ring_exp, },
+end
+
+-- Third, using `nat.ind` term-style.
+lemma seq1_formula'' (n : ℕ) : seq1 n = 11 * 2 ^ n - 5 :=
+nat.ind _ n rfl (λ k ih, by {rw [seq1_succ, ih], ring_exp })
+
 -- Here's another sequence.
 def triangle (n : ℕ) : ℤ := nat.int_seq n 0 (λ k seq_k, k + seq_k)
+
+lemma triangle_succ (n : ℕ) : triangle (succ n) = n + triangle n := rfl
+
+-- We prove the formula for the sum of the triangle numbers.
+lemma triangle_formula (n : ℕ) : 2 * triangle (succ n) = n * (succ n) :=
+begin
+  refine nat.ind _ n rfl _,
+  { intros k ih, rw [triangle_succ, mul_add, ih], ring, }
+end
+
+lemma triangle_formula' (n : ℕ) : 2 * triangle (succ n) = n * (succ n) :=
+nat.ind _ n rfl (λ k ih, by { rw [triangle_succ, mul_add, ih], ring })
 
 end recursively_defined_sequences_of_ints
 
