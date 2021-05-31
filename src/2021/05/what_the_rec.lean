@@ -1,4 +1,4 @@
-import tactic
+import tactic data.vector
 
 namespace exlean 
 
@@ -172,6 +172,8 @@ section recursion_in_general
 @[elab_as_eliminator]
 def nat.rec_on' {C : ℕ → Sort u} (n : ℕ) (h₀ : C 0) (h₁ : ∀ (k : ℕ), C k → C k.succ) : C n :=
 nat.rec_on n h₀ h₁
+
+def vseq (n : ℕ) : vector ℕ n := nat.rec_on' n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
 
 def seq (n : ℕ) : ℕ := nat.rec_on' n 6 (λ k seq_k, 5 + 2 * seq_k)
 
