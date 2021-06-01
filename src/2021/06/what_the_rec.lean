@@ -42,8 +42,6 @@ begin
   exact nat.ind P a h₀ h₁
 end
 
-#check nat
-
 lemma zero_add'' (a : ℕ) : 0 + a = a :=
 begin
   apply nat.ind (λ k, 0 + k = k),
@@ -213,19 +211,21 @@ def vseq_triangle'' (n : ℕ) : vector ℕ n :=
 
 example : vseq_triangle' 6 = ⟨[15, 10, 6, 3, 1, 0], _⟩ := rfl
 
+#reduce vseq_triangle' 1
+
 /-
 Using the above idea, we can define the Fibonacci sequence. Again, we can do this with `nat.rec_on`
 as we'll see later.
 -/
-def next_fib : Π (k : ℕ), vector ℕ k → vector ℕ (k+1)
+def next_fib_cheat : Π (k : ℕ), vector ℕ k → vector ℕ (k+1)
 | 0       _   := ⟨[1], rfl⟩
 | 1       _   := ⟨[1,1], rfl⟩
 | m@(a+2) am  := vector.cons (am.head + am.tail.head) am
 
-def vseq_fib (n : ℕ) : vector ℕ n :=
-  nat.vec_seq_simple n next_fib
+def vseq_fib_cheat (n : ℕ) : vector ℕ n :=
+  nat.vec_seq_simple n next_fib_cheat
 
-example : vseq_fib 7 = ⟨[13, 8, 5, 3, 2, 1, 1], _⟩ := rfl
+example : vseq_fib_cheat 7 = ⟨[13, 8, 5, 3, 2, 1, 1], _⟩ := rfl
 
 end sequences_of_vectors
 
@@ -257,10 +257,16 @@ end
 def next_vec'' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
 λ k, nat.rec_on k (λ am, ⟨[0], rfl⟩) (λ m h am, vector.cons (m + am.head) am)
 
+def next_vec''' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
+λ k, nat.rec_on k (λ am, ⟨[0], rfl⟩) (λ m h am, vector.cons (m + am.head) am)
+
 def vseq_triangle''' (n : ℕ) : vector ℕ n :=
   nat.vec_seq_simple n (λ k, nat.rec_on k (λ am, ⟨[0], rfl⟩) (λ m h am, vector.cons (m + am.head) am))
 
-def next_fib' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
+def vseq_triangle'''' (n : ℕ) : vector ℕ n :=
+  nat.rec_on n vector.nil next_vec''
+
+def next_fib : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
 begin
   intro k,
   refine nat.rec_on' k _ _,
@@ -275,25 +281,25 @@ def next_fib'' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
 λ k, nat.rec_on' k (λ _, ⟨[1], rfl⟩) (λ m _ _, nat.rec_on' m ⟨[1,1], rfl⟩
   (λ _ ac, vector.cons (ac.head + ac.tail.head) ac))
 
-def vseq_fib' (n : ℕ) : vector ℕ n :=
-  nat.vec_seq_simple n next_fib''
+def vfib (n : ℕ) : vector ℕ n :=
+  nat.rec_on n vector.nil next_fib
 
-lemma vseq_fib'_succ (n : ℕ) : vseq_fib' (succ (succ (succ n))) =
-  vector.cons ( (vseq_fib' (succ (succ n))).head + (vseq_fib' (succ (succ n))).tail.head)
-    (vseq_fib' (succ (succ n))) := rfl
+lemma vfib_succ (n : ℕ) : vfib (succ (succ (succ n))) =
+  vector.cons ( (vfib (succ (succ n))).head + (vfib (succ (succ n))).tail.head)
+    (vfib (succ (succ n))) := rfl
 
-lemma vseq_fib'_succ_tail (n : ℕ) : (vseq_fib' (succ n)).tail = vseq_fib' n :=
+lemma vfib_succ_tail (n : ℕ) : (vfib (succ n)).tail = vfib n :=
 begin
   refine nat.rec_on n rfl _,
   intro k,
   refine nat.rec_on k _ _,
   { intro h, refl, },
-  { intros m ih, rw vseq_fib'_succ, simp, },
+  { intros m ih, rw vfib_succ, simp, },
 end
   
-lemma vseq_fib'_formula (n : ℕ) :
-  (vseq_fib' (n+3)).head = (vseq_fib' (n+2)).head + (vseq_fib' (n+1)).head :=
-by simp [vseq_fib'_succ, vseq_fib'_succ_tail]
+lemma vfib_formula (n : ℕ) :
+  (vfib (n+3)).head = (vfib (n+2)).head + (vfib (n+1)).head :=
+by simp [vfib_succ, vfib_succ_tail]
 
 def vseq1 (n : ℕ) : vector ℕ n := nat.rec_on' n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
 
