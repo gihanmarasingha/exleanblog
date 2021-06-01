@@ -1,5 +1,6 @@
 import tactic data.vector
 
+
 namespace exlean 
 
 open nat
@@ -7,7 +8,7 @@ open nat
 section induction_on_nat
 
 @[elab_as_eliminator, reducible]
-def nat.ind (P : ℕ → Prop) (n : ℕ)  (h₀ : P 0) (h₁ : ∀ (k : ℕ), P k → P k.succ) : P n :=
+def nat.ind (P : ℕ → Prop) (n : ℕ) (h₀ : P 0) (h₁ : ∀ (k : ℕ), P k → P k.succ) : P n :=
 nat.rec_on n h₀ h₁
 
 lemma add_zero (a : ℕ) : a + 0 = a := rfl
@@ -28,6 +29,8 @@ begin
   rw ih, -- ⊢ succ k = succ k
 end
 
+example : ℕ := succ (succ zero)
+
 lemma zero_add (a : ℕ) : 0 + a = a := nat.ind P a base ind_step
 
 lemma zero_add' (a : ℕ) : 0 + a = a :=
@@ -38,6 +41,8 @@ begin
   { dsimp [P], intros k ih, rw add_succ, rw ih, },
   exact nat.ind P a h₀ h₁
 end
+
+#check nat
 
 lemma zero_add'' (a : ℕ) : 0 + a = a :=
 begin
@@ -167,18 +172,60 @@ end recursively_defined_sequences_of_nats
 
 section sequences_of_vectors
 
-def nat.vec_seq_simple (n : ℕ) (h : ∀ (k : ℕ) (ak : vector ℕ k), vector ℕ (k+1)) : vector ℕ n :=
+def natvec (k : ℕ) := vector ℕ (succ k)
+
+-- A principle for defining sequences of vectors of natural numbers. The `n`th term in the sequence
+-- is a vector of length `n + 1`.
+def nat.vec_seq (n : ℕ) (a₀ : natvec 0) (h : Π (k : ℕ) (ak : natvec k), natvec (succ k)) :
+  natvec n := nat.rec_on n a₀ h
+
+-- A sequence of triangular numbers.
+def vseq_triangle (n : ℕ) : natvec n :=
+  nat.vec_seq n ⟨[0], rfl⟩ (λ k ak, vector.cons (k + ak.head) ak)
+
+example : vseq_triangle 5 = ⟨[10, 6, 3, 1, 0, 0], _⟩ := rfl
+
+-- A principle for defining sequences of vectors. The `n`th term in the sequence is a vector of
+-- length `n`.
+def nat.vec_seq_simple (n : ℕ) (h : Π (k : ℕ) (ak : vector ℕ k), vector ℕ (k+1)) : vector ℕ n :=
   nat.rec_on n vector.nil h
 
 def vseq (n : ℕ) : vector ℕ n := nat.vec_seq_simple n (λ k ak, vector.cons (k*k) ak)
 
-def nat.vec_seq (n : ℕ) (a₀ : vector ℕ 1) (h : Π (k : ℕ) (ak : vector ℕ (k + 1)), vector ℕ (k + 2)) :
-  vector ℕ (n + 1) := nat.rec_on n a₀ h
+/--
+A slighly different definition of a sequence of triangular numbers. We begin with an auxiliary function.
+**Note** this is a bit of a cheat as pattern matching of course involves recursion. We'll redo this
+in the next section.
+-/
+def next_vec : Π (k : ℕ), vector ℕ k → vector ℕ (k+1)
+| 0       _   := ⟨[0], rfl⟩
+| m@(a+1) am  := vector.cons (m + am.head) am
 
-def vseq_triangle (n : ℕ) : vector ℕ (n + 1) :=
-  nat.vec_seq n ⟨[0], rfl⟩ (λ k ak, vector.cons (k + ak.head) ak)
+def vseq_triangle' (n : ℕ) : vector ℕ n :=
+  nat.vec_seq_simple n next_vec
 
-example : vseq_triangle 5 = ⟨[10, 6, 3, 1, 0, 0], _⟩ := by simpa
+def vseq_triangle'' (n : ℕ) : vector ℕ n :=
+  nat.vec_seq_simple n (λ k,
+  match k with
+  | 0       := λ ak, ⟨[0], rfl⟩
+  | m@(a+1) := λ am, vector.cons (m + am.head) am
+  end )
+
+example : vseq_triangle' 6 = ⟨[15, 10, 6, 3, 1, 0], _⟩ := rfl
+
+/-
+Using the above idea, we can define the Fibonacci sequence. Again, we can do this with `nat.rec_on`
+as we'll see later.
+-/
+def next_fib : Π (k : ℕ), vector ℕ k → vector ℕ (k+1)
+| 0       _   := ⟨[1], rfl⟩
+| 1       _   := ⟨[1,1], rfl⟩
+| m@(a+2) am  := vector.cons (am.head + am.tail.head) am
+
+def vseq_fib (n : ℕ) : vector ℕ n :=
+  nat.vec_seq_simple n next_fib
+
+example : vseq_fib 7 = ⟨[13, 8, 5, 3, 2, 1, 1], _⟩ := rfl
 
 end sequences_of_vectors
 
@@ -187,8 +234,66 @@ universe u
 section recursion_in_general
 
 @[elab_as_eliminator, reducible]
-def nat.rec_on' {C : ℕ → Sort u} (n : ℕ) (h₀ : C 0) (h₁ : ∀ (k : ℕ), C k → C k.succ) : C n :=
+def nat.rec_on' {C : ℕ → Sort u} (n : ℕ) (h₀ : C 0) (h₁ : Π (k : ℕ), C k → C k.succ) : C n :=
 nat.rec_on n h₀ h₁
+
+example (P : ℕ → Prop) (n : ℕ) (h₀ : P 0) (h₁ : ∀ (k : ℕ), P k → P k.succ) : 
+  @nat.ind P n h₀ h₁ = @nat.rec_on P n h₀ h₁ := rfl
+
+example (n : ℕ) (a₀ : ℤ) (h : ∀ (k : ℕ) (ak : ℤ), ℤ) :
+  nat.int_seq n a₀ h = @nat.rec_on' (λ (k : ℕ), ℤ) n a₀ h := rfl
+
+example (n : ℕ) (a₀ : natvec 0) (h : Π (k : ℕ) (ak : natvec k), natvec (succ k)) : 
+  nat.vec_seq n a₀ h = @nat.rec_on' natvec n a₀ h := rfl
+
+def next_vec' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
+begin
+  intro k,
+  refine nat.rec_on' k _ _,
+  { intro am, exact ⟨[0], rfl⟩, },
+  { intros m h am, exact vector.cons (m + am.head) am },
+end
+
+def next_vec'' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
+λ k, nat.rec_on k (λ am, ⟨[0], rfl⟩) (λ m h am, vector.cons (m + am.head) am)
+
+def vseq_triangle''' (n : ℕ) : vector ℕ n :=
+  nat.vec_seq_simple n (λ k, nat.rec_on k (λ am, ⟨[0], rfl⟩) (λ m h am, vector.cons (m + am.head) am))
+
+def next_fib' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
+begin
+  intro k,
+  refine nat.rec_on' k _ _,
+  { intro am, exact ⟨[1], rfl⟩, },
+  { intros m h am,
+    refine nat.rec_on' m _ _,
+    { exact ⟨[1, 1], rfl⟩ },
+    { intros c ac, exact vector.cons (ac.head + ac.tail.head) ac }, },
+end
+
+def next_fib'' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
+λ k, nat.rec_on' k (λ _, ⟨[1], rfl⟩) (λ m _ _, nat.rec_on' m ⟨[1,1], rfl⟩
+  (λ _ ac, vector.cons (ac.head + ac.tail.head) ac))
+
+def vseq_fib' (n : ℕ) : vector ℕ n :=
+  nat.vec_seq_simple n next_fib''
+
+lemma vseq_fib'_succ (n : ℕ) : vseq_fib' (succ (succ (succ n))) =
+  vector.cons ( (vseq_fib' (succ (succ n))).head + (vseq_fib' (succ (succ n))).tail.head)
+    (vseq_fib' (succ (succ n))) := rfl
+
+lemma vseq_fib'_succ_tail (n : ℕ) : (vseq_fib' (succ n)).tail = vseq_fib' n :=
+begin
+  refine nat.rec_on n rfl _,
+  intro k,
+  refine nat.rec_on k _ _,
+  { intro h, refl, },
+  { intros m ih, rw vseq_fib'_succ, simp, },
+end
+  
+lemma vseq_fib'_formula (n : ℕ) :
+  (vseq_fib' (n+3)).head = (vseq_fib' (n+2)).head + (vseq_fib' (n+1)).head :=
+by simp [vseq_fib'_succ, vseq_fib'_succ_tail]
 
 def vseq1 (n : ℕ) : vector ℕ n := nat.rec_on' n vector.nil (λ k seq_k, vector.cons (k*k) seq_k)
 
@@ -211,42 +316,5 @@ example : myadd 11 5 = 16 := rfl
 example : ∀ n, add_two n = myadd 2 n := λ n, rfl
 
 end recursion_in_general
-
-inductive le (a : ℕ) : ℕ → Prop
-| refl : le a
-| step : ∀ {b}, le b → le (succ b)
-
-local infix ` ≤ ` := le
-
-lemma le_rec (x : ℕ) (C : ℕ → Prop) (h1 : C x) (h2 : (∀ (y : ℕ), x ≤ y → C y → C y.succ)) :
- ∀ {n : ℕ}, x ≤ n → C n := λ n, (le.rec h1) h2
-
-lemma le_rec' (x n : ℕ) (C : ℕ → Prop)
-(h1 : C x) (h2 : (∀ (y : ℕ), x ≤ y → C y → C y.succ)) (h3 : x ≤ n) : C n :=
- (λ n, (le.rec h1) h2) n h3
-
-lemma le_trans (a b c : ℕ) : a ≤ b → b ≤ c → a ≤ c :=
-begin
-  let C := λ m, a ≤ m,
-  intro hab,
-  have h2 : ∀ (y : ℕ), b ≤ y → C y → C y.succ,
-  { intros y hby hay,
-    apply le.step,
-    exact hay, },
-  apply le_rec b C hab h2,
-end
-
-lemma le_trans' (a b c : ℕ) : a ≤ b → b ≤ c → a ≤ c :=
-begin
-  let C := λ m, a ≤ m,
-  intros h1 h3,
-  have h2 : ∀ (y : ℕ), b ≤ y → C y → C y.succ,
-  { intros y hby hay,
-    apply le.step,
-    exact hay, },
-  exact le_rec' b c C h1 h2 h3,
-end
-
-
 
 end exlean
