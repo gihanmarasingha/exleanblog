@@ -7,6 +7,8 @@ inductive foob
 | blue (n : nat) : foob
 | green (a : ℕ) (b : ℤ) : foob → foob → foob
 
+section inductive_propositions
+
 /-
 The following defintions `myor` and `myand` are quite different from the definitions `and` and `or`.
 In particular, for each `α β : Prop`, `myand α β : Type`, whereas `and α β : Prop`.
@@ -43,6 +45,25 @@ but `myand q r` is the second argument to `myand` in `myand p (myand q r)`. Both
 `myand` are required to have type `Prop`.
 -/
 --example (p q r : Prop) : myand p (myand q r) → q := sorry
+
+/-
+One major difference between `Prop` and other type universes is that an inductive type in `Prop`
+can only eliminate to other types in `Prop`. Put another way, if `α` is an inductive type in `Prop`
+then the motive `C` of `α.rec_on` is also of type `Prop`.
+-/
+
+-- Here's a pukka application of `or.rec_on`.
+example (p q : Prop) (h : or p q) : or q p := or.rec_on h (λ hp, or.inr hp) (λ hq, or.inl hq)
+
+-- The following doesn't work.
+-- example (p q : Prop) (h : or p q) : ℕ := or.rec_on h (λ hp, 5) (λ hq, 10)
+
+-- But it does work with `myor` as `myor` is not a type in `Prop`.
+example (p q : Prop) (h : myor p q) : ℕ := myor.rec_on h (λ hp, 5) (λ hq, 10)
+
+example (p q : Prop) (h : and p q) : ℕ  := and.rec_on h (λ hp hq, 5)
+
+end inductive_propositions
 
 section less_than_or_equal
 
