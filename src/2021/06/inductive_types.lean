@@ -83,6 +83,20 @@ example : le' 5 5 := le'.refl 5
 
 local infix ` ≤ ` := le
 
+example (a b c : ℕ) (hab : le a b) (hbc : le b c) : le a c := le.rec_on hbc hab
+  (λ d hbd had, by { apply le.step, exact had})
+
+/-
+It took me ages to figure out the simple proof below. This is because I was trying induction on
+`hab` rather than `hbc`.
+-/
+lemma le_trans (a b c : ℕ) (hab : a ≤ b) (hbc : b ≤ c) : a ≤ c :=
+begin
+  induction hbc with d hbd had,
+  { exact hab, },
+  { apply le.step, exact had, }
+end
+
 lemma le_rec (x : ℕ) (C : ℕ → Prop) (h1 : C x) (h2 : (∀ (y : ℕ), x ≤ y → C y → C y.succ)) :
  ∀ {n : ℕ}, x ≤ n → C n := λ n, (le.rec h1) h2
 
@@ -90,7 +104,7 @@ lemma le_rec' (x n : ℕ) (C : ℕ → Prop)
 (h1 : C x) (h2 : (∀ (y : ℕ), x ≤ y → C y → C y.succ)) (h3 : x ≤ n) : C n :=
  (λ n, (le.rec h1) h2) n h3
 
-lemma le_trans (a b c : ℕ) : a ≤ b → b ≤ c → a ≤ c :=
+lemma le_trans' (a b c : ℕ) : a ≤ b → b ≤ c → a ≤ c :=
 begin
   let C := λ m, a ≤ m,
   intro hab,
@@ -101,7 +115,7 @@ begin
   apply le_rec b C hab h2,
 end
 
-lemma le_trans' (a b c : ℕ) : a ≤ b → b ≤ c → a ≤ c :=
+lemma le_trans'' (a b c : ℕ) : a ≤ b → b ≤ c → a ≤ c :=
 begin
   let C := λ m, a ≤ m,
   intros h1 h3,
