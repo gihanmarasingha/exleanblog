@@ -211,8 +211,6 @@ def vseq_triangle'' (n : ℕ) : vector ℕ n :=
 
 example : vseq_triangle' 6 = ⟨[15, 10, 6, 3, 1, 0], _⟩ := rfl
 
-#reduce vseq_triangle' 1
-
 /-
 Using the above idea, we can define the Fibonacci sequence. Again, we can do this with `nat.rec_on`
 as we'll see later.
@@ -277,6 +275,19 @@ begin
     { intros c ac, exact vector.cons (ac.head + ac.tail.head) ac }, },
 end
 
+def next_fibbum : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
+show Π (k : ℕ), vector ℕ k → vector ℕ (k+1),
+{
+  intro k,
+  refine nat.rec_on' k _ _,
+  { intro am, exact ⟨[1], rfl⟩, },
+  { intros m h am,
+    refine nat.rec_on' m _ _,
+    { exact ⟨[1, 1], rfl⟩ },
+    { intros c ac, exact vector.cons (ac.head + ac.tail.head) ac }, },
+}
+
+
 def next_fib'' : Π (k : ℕ), vector ℕ k → vector ℕ (k+1) :=
 λ k, nat.rec_on' k (λ _, ⟨[1], rfl⟩) (λ m _ _, nat.rec_on' m ⟨[1,1], rfl⟩
   (λ _ ac, vector.cons (ac.head + ac.tail.head) ac))
@@ -305,21 +316,46 @@ def vseq1 (n : ℕ) : vector ℕ n := nat.rec_on' n vector.nil (λ k seq_k, vect
 
 def seq (n : ℕ) : ℕ := nat.rec_on' n 6 (λ k seq_k, 5 + 2 * seq_k)
 
-def add_one (n : ℕ) : ℕ := nat.rec_on n 1 (λ k ih, succ ih)
+def add_one (n : ℕ) : ℕ := nat.rec_on n 1 (λ k h, succ h)
 
-def add_one' (n : ℕ) : ℕ := @nat.rec_on (λ x, ℕ) n 1 (λ k ih, succ ih)
+def add_one' (n : ℕ) : ℕ := @nat.rec_on (λ x, ℕ) n 1 (λ k h, succ h)
 
-def add_two (n : ℕ) : ℕ := nat.rec_on n 2 (λ k ih, succ ih)
+def add_two (n : ℕ) : ℕ := nat.rec_on n 2 (λ k h, succ h)
+
+def add_two' (n : ℕ) : ℕ := @nat.rec_on (λ x, ℕ) n 2 (λ k h, succ h)
+
+example (n : ℕ) : add_two n = add_two' n := rfl
 
 example : add_one 4 = 5 := rfl
 
 example : add_two 4 = 6 := rfl
 
-def myadd (m n : ℕ) : ℕ := nat.rec_on n m (λ k ih, succ ih)
+def myadd (m n : ℕ) : ℕ := nat.rec_on n m (λ k h, succ h)
 
 example : myadd 11 5 = 16 := rfl
 
 example : ∀ n, add_two n = myadd 2 n := λ n, rfl
+
+lemma myadd_eq_add (m n : ℕ) : myadd m n = nat.add m n :=
+begin
+  apply nat.rec_on n,
+  { refl, },
+  { intros k ih,
+    dsimp [myadd, nat.add] at *, rw ih, },
+end
+
+def mymul (m n : ℕ) : ℕ := nat.rec_on n 0 (λ k h, myadd h m)
+
+lemma mymul_zero (m : ℕ) : mymul m 0 = 0 := rfl
+
+lemma mymul_succ (m n : ℕ) : mymul m (succ n) = myadd (mymul m n) m := rfl
+
+lemma mymul_eq_mul  (m n : ℕ) : mymul m n = nat.mul m n :=
+begin
+  induction n with k ih,
+  { refl, },
+  { dsimp [mymul, nat.mul] at *, rw ih, rw myadd_eq_add, refl, }
+end
 
 end recursion_in_general
 
