@@ -3,9 +3,9 @@ import tactic
 namespace exlean
 
 inductive foob
-| red : foob
-| blue (n : nat) : foob
-| green (a : ℕ) (b : ℤ) : foob → foob → foob
+  | red : foob
+  | blue (n : nat) : foob
+  | green (a : ℕ) (b : ℤ) : foob → foob → foob
 
 section inductive_propositions
 
@@ -14,11 +14,11 @@ The following defintions `myor` and `myand` are quite different from the definit
 In particular, for each `α β : Prop`, `myand α β : Type`, whereas `and α β : Prop`.
 -/
 inductive myor (α β : Prop)
-| inl (h : α) : myor
-| inr (h : β) : myor
+  | inl (h : α) : myor
+  | inr (h : β) : myor
 
 inductive myand (α β : Prop)
-| intro (left : α) (right : β) : myand
+  | intro (left : α) (right : β) : myand
 
 /-
 Some proofs work as expected.
@@ -70,18 +70,20 @@ section less_than_or_equal
 open nat
 
 inductive le (a : ℕ) : ℕ → Prop
-| refl : le a
-| step : ∀ {b}, le b → le (succ b)
+  | refl : le a
+  | step : ∀ {b}, le b → le (succ b)
 
 inductive le' : ℕ → ℕ → Prop
-| refl : ∀ (a : ℕ), le' a a
-| step : ∀ (a b : ℕ), le' a b → le' a (succ b)
+  | refl : ∀ (a : ℕ), le' a a
+  | step : ∀ (a b : ℕ), le' a b → le' a (succ b)
 
 example : le 5 5 := le.refl
 
 example : le' 5 5 := le'.refl 5
 
 local infix ` ≤ ` := le
+
+#check @le.rec_on
 
 example (a b c : ℕ) (hab : le a b) (hbc : le b c) : le a c := le.rec_on hbc hab
   (λ d hbd had, by { apply le.step, exact had})
@@ -131,8 +133,8 @@ end less_than_or_equal
 section trees
 
 inductive Tree
-| empty : Tree
-| node  : ℕ → Tree → Tree → Tree
+  | empty : Tree
+  | node  : ℕ → Tree → Tree → Tree
 
 open Tree
 
@@ -175,14 +177,14 @@ begin
 end
 
 inductive sorted_tree : Tree → Prop
-| srt_empty : sorted_tree empty
-| srt_neither {n : ℕ} : sorted_tree (node n empty empty)
-| srt_left {n m : ℕ} {lt rt : Tree} : m ≤ n → sorted_tree (node m lt rt)
-  → sorted_tree (node n (node m lt rt) empty)
-| srt_right {n m : ℕ} {lt rt : Tree} : n ≤ m → sorted_tree (node m lt rt)
-  → sorted_tree (node n empty (node m lt rt))
-| srt_both {n m p : ℕ} {ltm rtm ltp rtp : Tree} : m ≤ n → n ≤ p → sorted_tree (node m ltm rtm)
-  → sorted_tree (node p ltp rtp) → sorted_tree (node n (node m ltm rtm) (node p ltp rtp))
+  | srt_empty : sorted_tree empty
+  | srt_neither {n : ℕ} : sorted_tree (node n empty empty)
+  | srt_left {n m : ℕ} {lt rt : Tree} : m ≤ n → sorted_tree (node m lt rt)
+    → sorted_tree (node n (node m lt rt) empty)
+  | srt_right {n m : ℕ} {lt rt : Tree} : n ≤ m → sorted_tree (node m lt rt)
+    → sorted_tree (node n empty (node m lt rt))
+  | srt_both {n m p : ℕ} {ltm rtm ltp rtp : Tree} : m ≤ n → n ≤ p → sorted_tree (node m ltm rtm)
+    → sorted_tree (node p ltp rtp) → sorted_tree (node n (node m ltm rtm) (node p ltp rtp))
 
 open sorted_tree
 
@@ -191,6 +193,78 @@ begin
   refine srt_right dec_trivial _,
   exact srt_neither,
 end
+
+def tree1 := node 10 (node 5 empty empty) (node 30 empty empty)
+
+lemma test_srt1 : sorted_tree tree1 :=
+by { refine srt_both dec_trivial dec_trivial _ _; exact srt_neither }
+
+def tree2 := node 20 tree1 empty
+
+lemma test_srt2 : sorted_tree tree2 :=
+begin
+  dsimp [tree2,tree1],
+  refine srt_left dec_trivial _,
+  exact test_srt1,
+end
+
+def tree_insert : ℕ → Tree → Tree
+  | x empty := node x empty empty
+  | x (node a left right) := if x = a then node a left right else
+      if x <= a then node a (tree_insert x left) right else node a left (tree_insert x right)
+
+def list_to_tree : list ℕ → Tree := list.foldr tree_insert empty
+
+example : list_to_tree [1,2,3] = node 3 (node 2 (node 1 empty empty) empty) empty := rfl
+
+def tree1' := list_to_tree [30,5,10]
+
+example : tree1 = tree1' := rfl
+
+def tree2' := list_to_tree [30,10,5,20]
+
+#reduce tree2'
+
+
+example (xs : list ℕ) (x : ℕ) : ∃ l r, list_to_tree (xs ++ [x]) = node x l r :=
+begin
+  induction xs with y ys ih,
+  { use [empty, empty], refl, },
+  { unfold list_to_tree at *, dsimp,
+    rcases ih with ⟨l1, r1, ih⟩,
+    rw ih,
+    cases (lt_trichotomy x y) with h h,
+    { use [l1, tree_insert y r1],
+      dsimp [tree_insert],
+      rw if_neg,
+      { rw if_neg,
+        { intro hle, apply lt_irrefl x, apply lt_of_lt_of_le h hle, }, },
+      { intro heq, rw heq at h, exact (lt_irrefl x) h, }, },
+    { cases h with h h,
+      { use [l1, r1], dsimp [tree_insert], rw if_pos, symmetry, assumption, },
+      use [tree_insert y l1, r1], 
+      dsimp [tree_insert],
+      rw if_neg,
+      { rw if_pos,
+        { exact le_of_lt h }, },
+      { intro heq, rw heq at h, exact (lt_irrefl x) h, }, }, }
+end
+
+/- lemma sorted_of_list (t : Tree) (h : sorted_tree t) : ∃ xs, t = list_to_tree xs :=
+begin
+  induction h,
+  { use ([] : list ℕ), refl, },
+  case srt_neither : x { use ([x] : list ℕ), refl, },
+  case srt_left : n m l r hle hsrt ih
+  { cases ih with xs ih,
+    use (xs ++ [m]),
+    dsimp [list_to_tree],
+    rw [ih, list.foldr_append],
+
+   },
+  {   },
+  {   },
+end -/
 
 end Tree
 
