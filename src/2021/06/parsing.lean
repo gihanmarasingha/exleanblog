@@ -1,18 +1,9 @@
-import data.buffer
-
 namespace exlean
 namespace parser
 
 /-
 This is a translation into Lean of the `parsing` module described in the first edition of
 "Programming in Haskell", by Graham Hutton, Chapter 8.
-
-Some ideas also adapted from Lean's `parser` monad.
--/
-
-/-
-PROBABLY NEED TO ADAPT THIS TO INCUDE A NATURAL NUMBER THAT POINTS TO THE CURRENT POSITION IN THE
-STRING. SEE THE LEAN parser MODULE.
 -/
 
 inductive Parser (α : Type)
@@ -126,7 +117,7 @@ example : parse (stringp "abc") "abcdef" = some ("abc", "def") := rfl
 example : parse (stringp "abc") "ab1234" = none := rfl
 
 /-
-IDEA: LOOK INTO THE REPEAT TACTIC. SHOULD BE SIMILAR TO WHAT I WANT FOR MANY
+Repetition
 -/
 
 def once (p : Parser α) : Parser (list α) :=
@@ -145,34 +136,6 @@ example : parse (one_or_zero digit) "a123" = some ([], "a123") := rfl
 
 example : parse (one_or_zero digit) "123" = some (['1'], "23") := rfl
 
-def two_or_less (p : Parser α) : Parser (list α) :=
-do  x ← one_or_zero p,
-    y ← one_or_zero p,
-    return (list.join [x,y])
-
-example : parse (two_or_less letter) "a123" = some (['a'], "123") := rfl
-
-example : parse (two_or_less letter) "ab123" = some (['a', 'b'], "123") := rfl
-
-example : parse (two_or_less letter) "1ab23" = some ([], "1ab23") := rfl
-
-example : parse (two_or_less letter) "abc123" = some (['a', 'b'], "c123") := rfl
-
-def three_or_less (p : Parser α) : Parser (list α) :=
-do  x ← one_or_zero p,
-    y ← two_or_less p,
-    return (list.join [x,y])
-
-example : parse (three_or_less lower) "gihAN" = some (['g','i','h'],"AN") := rfl
-
-/- def n_or_less {α : Type*} (p : Parser α) : ℕ → Parser (list α)
-  | 0 := return []
-  | (n+1) := do x <- one_or_zero p,
-                xs ← n_or_less n,
-                return (x ++ xs)
-                
-example : parse (n_or_less lower 3) "gihAN" = some (['g','i','h'],"AN") := rfl -/
-
 /-
 `n_or_less p n` succeeds if `n` or fewer applications of `p` succeed. Else it fails.
 -/
@@ -182,29 +145,18 @@ def n_or_less (p : Parser α) : ℕ → Parser (list α)
                 xs ← n_or_less n,
                 return (x :: xs)   
 
+example : parse (n_or_less lower 600000) "gihanIIHAN" = none := rfl                 
 
-#eval parse (n_or_less lower 600000) "gihanIIHAN"                            
+example : parse (n_or_less lower 4) "gihanIIHAN" = some (['g', 'i', 'h', 'a'], "nIIHAN") := rfl     
 
-#eval parse (n_or_less lower 4) "gihanIIHAN" 
+/-
+`many p` does `p` repeatedly until failure. It's a `meta def` as it uses unbounded recursion.
+The Lean parser module gets around this by using a natural number to store the position in the string.
+-/
+meta def many (p : Parser α) : Parser (list α) :=
+  (do x ← p, xs ← many, return (x :: xs)) <|> return []
 
-def n_or_less' (p : Parser α) : ℕ → Parser ℕ
-  | 0 := return 0
-  | (n+1) := do x ← p,
-                xs ← n_or_less' n,
-                return n
-
-def foldr_core (f : α → β → β) (p : Parser α) (b : β) : ∀ (reps : ℕ), Parser β
-| 0 := failure
-| (reps+1) := (do x ← p, xs ← foldr_core reps, return (f x xs)) <|> return b
-
-/- def foldr (f : α → β → β) (p : Parser α) (b : β) : Parser β :=
-P (λ inp, match parse (foldr_core f p b inp.length) inp with 
-            | none := none
-            | some (v, out) := 
-          end )
- -/
-/- def foldr (f : α → β → β) (p : Parser α) (b : β) : Parser β :=
-λ input pos, foldr_core f p b (input.size - pos + 1) input pos -/
+#eval parse (many digit) "754asdf"
 
 end parser
 end exlean
