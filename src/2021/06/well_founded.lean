@@ -1,4 +1,4 @@
-import data.nat.basic tactic
+import data.nat.basic tactic data.nat.parity
 
 namespace exlean
 
@@ -6,7 +6,7 @@ namespace wf_exlean
 
 lemma div_two_lt {x : ℕ} (h : 0 < x) : x / 2 < x :=
 begin
-  induction h with a hle ih,
+  induction h with a hle ih, -- Note the use of induction on `h`!
   { exact nat.zero_lt_one, },
   { rw [nat.succ_div, nat.succ_eq_add_one], 
     refine add_lt_add_of_lt_of_le ih _,
@@ -41,38 +41,80 @@ def lg' : ℕ → ℕ
     1 + lg' (x/2)
   else 0
 
-def lg_zero_aux : ∀ x, x = 0 → lg' x = 0
-| x := λ h, by { rw [lg', if_neg], rw h, exact nat.not_lt_zero 0, }
+/- def lg_zero_aux : ∀ x, x = 0 → lg' x = 0
+| x := λ h, by { rw [lg', if_neg], rw h, exact nat.not_lt_zero 0, } -/
 
-def lg_zero : lg' 0 = 0 := lg_zero_aux 0 rfl
+def lg_zero : lg' 0 = 0 := by { rw [lg', if_neg], intro h, exact nat.not_lt_zero 0 h }
 
--- For some weird reason, we need to do pattern matching when proving theorems like the
--- one below. It's awkward, but it works.
-def lg_one_aux : ∀ x, x = 1 → lg' x = 1
-| x := λ h,
-begin
-  rw [lg', if_pos], rw h, rw [lg', if_neg],
-  { exact nat.not_lt_zero 0, },
-  { rw h, exact nat.zero_lt_one, },
-end
-
-def lg_one : lg' 1 = 1 := lg_one_aux 1 rfl
+def lg_one : lg' 1 = 1 := by { rw [lg', if_pos]; norm_num, rw lg_zero }
 
 def lg_ineq : ℕ → Prop := λ n, n + 1 < 2 ^ lg' (n+1)
+
+lemma lt_mul_two {m : ℕ} (h : 0 < m) : m < 2 * m :=
+begin
+  induction h with a hle ih,
+  { norm_num, },
+  { simp only [nat.succ_eq_add_one], linarith, }
+end
+
+lemma pred_lt_mul_two {m : ℕ} (h : 0 < m) : m.pred < 2 * m :=
+begin
+  induction h with a hle ih,
+  { norm_num, },
+  { simp only [nat.pred_succ, nat.succ_eq_add_one], linarith, }
+end
+
+lemma two_mul_succ_div_two {m : ℕ} : (2 * m + 1) / 2 = m :=
+begin
+  rw [nat.succ_div, if_neg],
+  { norm_num, },
+  { rintros ⟨k, h⟩,
+    revert m, 
+    induction k with k ih,
+    { intros m h, linarith, },
+    { intros m h, 
+      cases m; simp only [nat.succ_eq_add_one] at h,
+      { linarith, },
+      { refine @ih m _, linarith }, },},
+end
+
+example (a : ℕ) : 2 * a / 2 = a := nat.mul_div_cancel_left _ (show 0 < 2, by linarith)
 
 def lg_lemma (x : ℕ) (h : Π (y : ℕ), y < x → lg_ineq y) : lg_ineq x :=
 if h₂ : 0 < x then
 begin
-  dsimp [lg_ineq] at *,
-  by_cases even x,
-  { sorry }, -- here `x = 2m`. Take `y = m`.
-  { sorry }, -- take `y + 1 = (x+1)/2`.
+  dsimp [lg_ineq] at h ⊢,
+  cases (nat.even_or_odd x) with h₃ h₃,
+  { cases h₃ with m h₃, rw h₃ at h₂ h ⊢, clear h₃,
+    have h₄ : 0 < m, linarith,
+    specialize h m.pred (pred_lt_mul_two h₄),
+    rw [lg', if_pos],
+    { rw two_mul_succ_div_two, 
+      simp only [←nat.succ_eq_add_one] at h,
+      rw (nat.succ_pred_eq_of_pos h₄) at h,
+      have h₅ : 2 * m < 2 ^ (1 + lg' m),
+      { rw [pow_add], linarith, },
+      have h₆ : 2 * m + 1 < 2 ^ (1 + lg' m) ∨ 2 * m + 1 = 2 ^ (1 + lg' m) := lt_or_eq_of_le h₅,
+      cases h₆,
+      { exact h₆, },
+      { rw [pow_add, pow_one] at h₆, linarith, }, },
+    linarith, }, 
+  { cases h₃ with m h₃, rw h₃ at h₂ h ⊢, clear h₃,
+    specialize h m (by linarith),
+    rw [lg', if_pos],
+    { rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith),
+      rw nat.mul_div_cancel_left _ (show 0 < 2, by norm_num),
+      rw pow_add, linarith, },
+    { linarith, },
+  
+  }, -- take `y + 1 = (x+1)/2`.
 end
 else
 begin
   have h₂ : x = 0, linarith, rw h₂, dsimp [lg_ineq],
   simp only [zero_add], rw lg_one, norm_num,
 end
+
 
 end wf_exlean
 
