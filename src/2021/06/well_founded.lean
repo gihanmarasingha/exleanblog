@@ -1,4 +1,4 @@
-import tactic data.nat.parity
+import tactic data.nat.parity tactic.induction
 
 namespace exlean
 
@@ -149,11 +149,21 @@ end prime_factors
 
 section quick_sort
 
-def smaller_list (x : ℕ) (xs : list ℕ) : list ℕ :=
-  list.filter (λ y, y < x) xs
+/-
+Might want to rewrite this using the definition given in core Lean `data.list.qsort`.
 
-def at_least_list (x : ℕ) (xs : list ℕ) : list ℕ :=
-  list.filter (λ y, x ≤ y) xs
+The definition there uses the notion of `partition`.
+
+A good discussion at: http://www.doc.ic.ac.uk/~scd/Dafny_Material/Lectures.pdf.
+-/
+
+open list
+
+def at_most_list (x : ℕ) (xs : list ℕ) : list ℕ :=
+  list.filter (λ y, y ≤ x) xs
+
+def greater_list (x : ℕ) (xs : list ℕ) : list ℕ :=
+  list.filter (λ y, x < y) xs
 
 lemma filter_length_lt {p : ℕ → Prop} [decidable_pred p] :
   ∀ ys, (list.filter p ys).length < ys.length + 1
@@ -166,14 +176,23 @@ begin
   { rw if_neg h, apply nat.lt.step, tauto, }
 end
 
+/-!
+Lean can aid you in determining the correct inequality for well-founded recursion. Simply
+write a proof *without* indicating the decreasing application and Lean will provide a helpful
+error message, suggesting which inequality you must prove.
+-/
+
+/--
+`qsort xs` returns a list `ys` such that `sorted ys` and `xs ~ ys`.
+-/
 def qsort : list ℕ → list ℕ
 | [] := []
 | (x :: xs) :=
-  let sl := smaller_list x xs in
-  let al := at_least_list x xs in
-  have sl.length < xs.length + 1 := filter_length_lt _,
-  have al.length < xs.length + 1 := filter_length_lt _, 
-  qsort sl ++ (x :: qsort al)
+  let al := at_most_list x xs in
+  let gl := greater_list x xs in
+  have al.length < xs.length + 1 := filter_length_lt _,
+  have gl.length < xs.length + 1 := filter_length_lt _, 
+  qsort al ++ (x :: qsort gl)
   using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ ys, ys.length)⟩]}
 
 inductive sorted : list ℕ → Prop
@@ -183,22 +202,90 @@ inductive sorted : list ℕ → Prop
 
 open sorted
 
-/-
-IDEA: I need an auxilary lemma asserting that if `b : ℕ`, `as bs :: list ℕ`, then
-`sorted as → sorted bs → (∀ a ∈ as, a ≤ b, sorted (as ++ (b :: bs))`.
--/
-
-lemma qsort_sorted : ∀ (xs : list ℕ), sorted (qsort xs)
-| [] := by { rw qsort, exact nil_sort }
-| [x] := by { simp [qsort, smaller_list, at_least_list], exact singleton_sort, }
-| (x :: y :: xs) :=
+lemma sorted_cons {x : ℕ} {as : list ℕ} (has : sorted as) (h : ∀ a ∈ as, x ≤ a) : sorted (x :: as) :=
 begin
-  let sl := smaller_list x (y :: xs),
-  let al := at_least_list x (y :: xs),
-  simp [qsort],
-  sorry,
+  cases has with a' p q qs hpq hqs,
+  { exact singleton_sort, },
+  { simp at h, apply cons_cons_sort; assumption, },
+  { apply cons_cons_sort _ has, apply h, simp, },
 end
 
+lemma le_of_sorted_cons {x : ℕ} {as : list ℕ} (h : sorted (x :: as)) : ∀ a ∈ as, x ≤ a :=
+begin
+  intros a has,
+  induction' h with _ _ p ps hxp hps,
+  { tauto, },
+  { apply le_trans hxp, rw list.mem_cons_iff at has, 
+    cases has,
+    { subst has, },
+    { exact ih _ has, }, },
+end
+
+lemma qsort_sorted_aux {x : ℕ} {as bs : list ℕ} (has : sorted as) (hbs : sorted bs) 
+(hale : ∀ a ∈ as, a ≤ x) (hble : ∀ b ∈ bs, x ≤ b) : sorted (as ++ (x :: bs)) :=
+begin
+  induction as with q qs ih,
+  { rw list.nil_append, exact sorted_cons hbs hble, },
+  { cases has with _ _ r rs hqr hrs,
+    { simp, apply sorted_cons,
+      { simp at ih, apply ih, exact nil_sort, },
+      { intros a hain, simp at hain, simp at hale,
+        cases hain,
+        { subst hain, exact hale, },
+        { specialize hble _ hain, exact le_trans hale hble, }, }, },
+    { apply sorted_cons,
+      { apply ih hrs, intros a ha, simp at ha,
+        cases ha,
+        { subst ha, apply hale, simp, },
+        { apply hale, right, right, exact ha, }, },
+      { simp only [forall_eq_or_imp, list.append, list.mem_cons_iff],      
+        rw and_iff_right hqr, clear ih,
+        intros a hain,
+        change (a ∈ rs ++ (x :: bs)) at hain, rw list.mem_append at hain,
+        rcases hain with hain | rfl | hain,
+        { apply le_trans hqr, apply le_of_sorted_cons hrs, exact hain,  },
+        { apply hale, simp, },
+        { specialize hble _ hain, apply le_trans _ hble, apply hale, simp, }, }, }, },
+end
+
+lemma perm_append_cons {xs as as' bs bs' : list ℕ} {y : ℕ}
+(h : xs ~ y :: as ++ bs) (has : as ~ as') (hbs : bs ~ bs') : xs ~ as' ++ y :: bs' :=
+calc xs ~ y :: as ++ bs : h
+    ... ~ as ++ y :: bs : perm_middle.symm
+    ... ~ as' ++ y :: bs : perm.append_right _ has 
+    ... ~ as' ++ y :: bs' : perm.append_left as' (perm.cons _ hbs)
+
+lemma perm_at_most_append_greater {x : ℕ} : ∀ as, as ~ (at_most_list x as) ++ (greater_list x as)
+| [] := by { dsimp [at_most_list, greater_list], refl, }
+| (a :: as) :=
+begin
+  have h := perm_at_most_append_greater as, dsimp [at_most_list, greater_list],
+  by_cases ha : a ≤ x,
+  { rw filter_cons_of_pos, swap, exact ha,
+    rw filter_cons_of_neg, swap, linarith, apply perm.cons, exact h, },
+  { rw filter_cons_of_neg, swap, exact ha, 
+    rw filter_cons_of_pos, swap, linarith,
+    exact perm.trans (perm.cons a h) perm_middle.symm, },
+end
+
+lemma qsort_sorted : ∀ xs, sorted (qsort xs) ∧ xs ~ qsort xs
+| [] := by { simp [nil_sort, qsort], }
+| (y :: ys) :=
+have (at_most_list y ys).length < ys.length + 1 := filter_length_lt _,
+have (greater_list y ys).length < ys.length + 1 := filter_length_lt _,
+begin
+  rw qsort,  
+  have h₁ := qsort_sorted (at_most_list y ys),
+  have h₂ := qsort_sorted (greater_list y ys),
+  split,
+  { refine qsort_sorted_aux h₁.1 h₂.1 _ _,
+    { intros a ha, 
+      rw perm.mem_iff h₁.2.symm at ha, dsimp [at_most_list] at ha, simp at ha, exact ha.2, },
+    { intros b hb,
+      rw perm.mem_iff h₂.2.symm at hb, dsimp [greater_list] at hb, simp at hb, linarith, }, },
+  { exact perm_append_cons (perm.cons y (perm_at_most_append_greater _)) h₁.2 h₂.2, },
+end
+using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ ys, ys.length)⟩]}
 
 end quick_sort
 
