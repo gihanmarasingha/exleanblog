@@ -1,4 +1,4 @@
-import data.nat.basic tactic data.nat.parity
+import tactic data.nat.parity
 
 namespace exlean
 
@@ -146,6 +146,61 @@ min_fac_aux (k + 2)
 using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, sqrt n + 2 - k)⟩]}
 
 end prime_factors
+
+section quick_sort
+
+def smaller_list (x : ℕ) (xs : list ℕ) : list ℕ :=
+  list.filter (λ y, y < x) xs
+
+def at_least_list (x : ℕ) (xs : list ℕ) : list ℕ :=
+  list.filter (λ y, x ≤ y) xs
+
+lemma filter_length_lt {p : ℕ → Prop} [decidable_pred p] :
+  ∀ ys, (list.filter p ys).length < ys.length + 1
+| [] := by simp
+| (y :: ys) :=
+begin
+  simp only [list.filter, list.length],
+  by_cases h : p y,
+  { rw if_pos h, simp only [list.length, add_lt_add_iff_right], tauto, },
+  { rw if_neg h, apply nat.lt.step, tauto, }
+end
+
+def qsort : list ℕ → list ℕ
+| [] := []
+| (x :: xs) :=
+  let sl := smaller_list x xs in
+  let al := at_least_list x xs in
+  have sl.length < xs.length + 1 := filter_length_lt _,
+  have al.length < xs.length + 1 := filter_length_lt _, 
+  qsort sl ++ (x :: qsort al)
+  using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ ys, ys.length)⟩]}
+
+inductive sorted : list ℕ → Prop
+| nil_sort : sorted []
+| singleton_sort {x : ℕ} : sorted [x]
+| cons_cons_sort {x y : ℕ} {xs : list ℕ} : x ≤ y → sorted (y :: xs) → sorted (x :: y :: xs)
+
+open sorted
+
+/-
+IDEA: I need an auxilary lemma asserting that if `b : ℕ`, `as bs :: list ℕ`, then
+`sorted as → sorted bs → (∀ a ∈ as, a ≤ b, sorted (as ++ (b :: bs))`.
+-/
+
+lemma qsort_sorted : ∀ (xs : list ℕ), sorted (qsort xs)
+| [] := by { rw qsort, exact nil_sort }
+| [x] := by { simp [qsort, smaller_list, at_least_list], exact singleton_sort, }
+| (x :: y :: xs) :=
+begin
+  let sl := smaller_list x (y :: xs),
+  let al := at_least_list x (y :: xs),
+  simp [qsort],
+  sorry,
+end
+
+
+end quick_sort
 
 end wf_exlean
 
