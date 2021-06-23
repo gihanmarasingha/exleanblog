@@ -17,31 +17,11 @@ for every `n : ℕ`. We prove the first of these inequalities.
 -/
 
 /--
-`div_two_lt` is vital for our application of well-founded recursion.
--/
-lemma div_two_lt {x : ℕ} (h : 0 < x) : x / 2 < x :=
-begin
-  induction h with a hle ih, -- Note the use of induction on `h`!
-  { exact nat.zero_lt_one, },
-  { rw [nat.succ_div, nat.succ_eq_add_one], 
-    refine add_lt_add_of_lt_of_le ih _,
-    have h : ite (2 ∣ a + 1) 1 0 = 1 ∨ ite (2 ∣ a + 1) 1 0 = 0 :=
-    or.elim (em (2 ∣ a + 1)) (λ k₂, or.inl $ if_pos k₂) (λ k₂, or.inr $ if_neg k₂),
-    cases h; rw h,
-    { exact nat.zero_le 1, } },
-end
-
-/- 
-def myF : Π x : ℕ, (Π (y : ℕ), y < x → ℕ) → ℕ :=
-λ x, nat.cases_on x (λ h, 0) (λ a h, 1 + h (a.succ / 2) (div_two_lt (nat.succ_pos a))) -/
-
-/--
 `myF x h` gives the value of `lg x` where `h y` is `lg y` for `y < x`.
 -/
-def myF (x : ℕ) (h : Π (y : ℕ), y < x → ℕ) : ℕ :=
-if h₂ : 0 < x then
-  1 + h (x / 2) (div_two_lt h₂)
-else 0
+def myF : Π (x : ℕ) (h : Π (y : ℕ), y < x → ℕ), ℕ
+| 0 := 0
+| (x + 1) := λ h, 1 + h ((x + 1) / 2) (nat.div_lt_self' x 0)
 
 /-!
 We prove that `myF` leads to well-founded recursive definition, which we call `lg_by_hand`.
@@ -62,11 +42,11 @@ in one step.
 `lg x = floor (log₂ x) + 1`
 -/
 def lg : ℕ → ℕ
-| x :=
-  if h₂ : 0 < x then
-    have x / 2 < x, from div_two_lt h₂,
-    1 + lg (x/2)
-  else 0
+| 0 := 0
+| (x + 1) := have (x + 1) / 2 < (x + 1), from nat.div_lt_self' x 0,
+    1 + lg ((x + 1)/2)
+
+lemma lg_one : lg 1 = 1 := by { rw lg, norm_num, rw lg, }
 
 /-!
 ### Proving log inequalities
@@ -74,16 +54,6 @@ def lg : ℕ → ℕ
 We now show  `(n + 1) < 2 ^ lg (n + 1) ≤ 2 * (n + 1)` for each `n : ℕ`. The proof involves
 well-founded recursion.
 -/
-
-def lg_zero : lg 0 = 0 := by { rw [lg, if_neg], intro h, exact nat.not_lt_zero 0 h }
-
-def lg_one : lg 1 = 1 := by { rw [lg, if_pos]; norm_num, rw lg_zero }
-
-/-!
-`pred_lt_mul_two` is used later to show the recursion is well-founded.
--/
-lemma pred_lt_mul_two {m : ℕ} (h : 0 < m) : m.pred < 2 * m :=
-by { have : m.pred < m, { apply nat.pred_lt, linarith, }, linarith }
 
 lemma two_mul_succ_div_two {m : ℕ} : (2 * m + 1) / 2 = m :=
 begin
@@ -97,28 +67,21 @@ def lg_ineq : ℕ → Prop := λ n, n + 1 < 2 ^ lg (n + 1)
 `lg_lemma_aux` is an auxiliary lemma used to show `lg x` satisfies the desired lower bound on
 the assumpion that `lg y` also satisfies the correct bound, for every `y < x`.
 -/
+
 lemma lg_lemma_aux (x : ℕ) (h : Π (y : ℕ), y < x → lg_ineq y) : lg_ineq x :=
-if h₂ : 0 < x then
 begin
+  cases x,
+  { rw [lg_ineq, lg_one], norm_num, }, -- base case
   dsimp [lg_ineq] at h ⊢,
-  cases (nat.even_or_odd x) with h₃ h₃,
-  { cases h₃ with m h₃, rw h₃ at h₂ h ⊢, clear h₃,
-    have h₄ : 0 < m, linarith,
-    specialize h m.pred (pred_lt_mul_two h₄),
-    rw [lg, if_pos], swap, linarith,
-    rw two_mul_succ_div_two, 
-    simp only [←nat.succ_eq_add_one] at h, rw (nat.succ_pred_eq_of_pos h₄) at h,
-    have h₅ : 2 * m < 2 ^ (1 + lg m), { rw [pow_add], linarith, },
-    have h₆ : 2 * m + 1 < 2 ^ (1 + lg m) ∨ 2 * m + 1 = 2 ^ (1 + lg m) := lt_or_eq_of_le h₅,
-    cases h₆, { exact h₆, }, { rw [pow_add, pow_one] at h₆, linarith, }, }, 
-  { cases h₃ with m h₃, rw h₃ at h₂ h ⊢, clear h₃,
-    specialize h m (by linarith),
-    rw [lg, if_pos], swap, linarith,
-    rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith),
-    rw nat.mul_div_cancel_left _ (show 0 < 2, by norm_num),
-    rw pow_add, linarith, }, 
+  rcases nat.even_or_odd x with ⟨m, rfl⟩ | ⟨m, rfl⟩,
+  { have h₄ : m < 2 * m + 1, by linarith,
+    specialize h m h₄, rw [nat.succ_eq_add_one, lg, pow_add],
+    rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith), norm_num, exact h, },
+  { have h₄ : m < 2 * m + 1 + 1, by linarith,
+    specialize h m h₄, rw [lg, pow_add],
+    rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith),
+    rw two_mul_succ_div_two, linarith, }, 
 end
-else by { dsimp [lg_ineq], rw [(show x = 0, by linarith), zero_add, lg_one], norm_num, }
 
 /--
 `lg_lemma` is the lower bound result for `lg x`. It uses well-founded recursion and `lg_lemma_aux`.
@@ -126,36 +89,63 @@ else by { dsimp [lg_ineq], rw [(show x = 0, by linarith), zero_add, lg_one], nor
 lemma lg_lemma : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1) := well_founded.fix nat.lt_wf lg_lemma_aux
 
 /--
-`lg_lemma'` is the lower bound result for `lg x`. In contrast to `lg_lemma`, this proof uses the
+`lg_lemma2` is the lower bound result for `lg x`. In contrast to `lg_lemma`, this proof uses the
 equation compiler to bypass the application of `well_founded.fix`.
 
 At two points in the proof, we supply inequalities needed to show that the recursive application
 is decreasing. These must be provided in term mode.
 -/
-lemma lg_lemma' : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
-| x :=
-if h₂ : 0 < x then or.elim (nat.even_or_odd x)
-(λ ⟨m, h₃⟩, have h₄ : 0 < m, by linarith,
-have m.pred < x := h₃.symm ▸ pred_lt_mul_two h₄, -- needed for wf recusion
-begin
-  rw h₃ at h₂ ⊢, clear h₃,
-  specialize lg_lemma' m.pred, rw [lg, if_pos], swap, linarith,
-  rw two_mul_succ_div_two, 
-  simp only [←nat.succ_eq_add_one] at lg_lemma', rw (nat.succ_pred_eq_of_pos h₄) at lg_lemma',
-  have h₅ : 2 * m < 2 ^ (1 + lg m), { rw [pow_add], linarith, },
-  have h₆ : 2 * m + 1 < 2 ^ (1 + lg m) ∨ 2 * m + 1 = 2 ^ (1 + lg m) := lt_or_eq_of_le h₅,
-  cases h₆, { exact h₆, }, { rw [pow_add, pow_one] at h₆, linarith, },
-end)
-(λ ⟨m, h₃⟩, have m < x, by { rw h₃, linarith }, -- needed for wf recursion
-begin
-  specialize lg_lemma' m, rw h₃ at h₂ ⊢, clear h₃,
-  rw [lg, if_pos], swap, linarith, 
-  rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith),
-  rw nat.mul_div_cancel_left _ (show 0 < 2, by norm_num), rw pow_add, linarith, 
-end)
-else by { rw [(show x = 0, by linarith), zero_add, lg_one], norm_num }
+lemma lg_lemma2 : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
+| 0 := by { rw lg_one, norm_num, }
+| (x + 1) := or.elim (nat.even_or_odd x)
+( λ ⟨m, hm⟩,
+  have m < x + 1, by linarith, -- needed for wf recursion
+  begin
+    specialize lg_lemma2 m, rw [hm, lg, pow_add],
+    rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith), norm_num, exact lg_lemma2,
+  end )
+( λ ⟨m, hm⟩,
+  have m < x + 1, by linarith, -- needed for wf recursion
+  begin
+    specialize lg_lemma2 m, rw [hm, lg, pow_add],
+    rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith), rw two_mul_succ_div_two, linarith,
+  end )
 
 end logarithms
+
+section prime_factors
+
+/-
+The following is adapted from `data.nat.prime` in mathlib. Here the normal `<` relation isn't what
+we want because we're computing `min_fac_aux k` using a value for `min_fac_aux (k + 2)`.
+
+But clearly `k + 2 < k` is false! Instead, we use a relation generated by a 'measure', that is,
+a function `f : α → ℕ`. In our case, we take `f` so that `f k = sqrt n + 2 - k`, where `n` is fixed.
+
+Let `≺` denote the relation on `ℕ` generated by `f`. By definition, `a ≺ b` means `f a < f b`.
+It's a theorem that for every measure `f`, the relation `≺` is well-founded.
+
+We ask Lean to use this relation via the command
+
+``using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, sqrt n + 2 - k)⟩]}``
+
+What remains is to show that the recursive application in decreasing. Recall we want to define
+`min_fac_aux k` in terms of `min_fac_aux (k + 2)`. We must show `f (k + 2) < f k`.
+
+This is precisely the assertion of `min_fac_lemma`.
+-/
+
+open nat
+
+def min_fac_aux (n : ℕ) : ℕ → ℕ | k :=
+if h : n < k * k then n else
+if k ∣ n then k else
+have sqrt n - k < sqrt n + 2 - k, -- needed for wf recursion
+{ rw nat.sub_lt_sub_right_iff, norm_num, rw nat.le_sqrt, exact le_of_not_gt h, },
+min_fac_aux (k + 2)
+using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, sqrt n + 2 - k)⟩]}
+
+end prime_factors
 
 end wf_exlean
 
