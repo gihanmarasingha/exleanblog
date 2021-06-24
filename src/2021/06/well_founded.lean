@@ -20,8 +20,8 @@ for every `n : ℕ`. We prove the first of these inequalities.
 `myF x h` gives the value of `lg x` where `h y` is `lg y` for `y < x`.
 -/
 def myF : Π (x : ℕ) (h : Π (y : ℕ), y < x → ℕ), ℕ
-| 0 := 0
-| (x + 1) := λ h, 1 + h ((x + 1) / 2) (nat.div_lt_self' x 0)
+| 0 _ := 0
+| (x + 1) h := 1 + h ((x + 1) / 2) (nat.div_lt_self' x 0)
 
 /-!
 We prove that `myF` leads to well-founded recursive definition, which we call `lg_by_hand`.
@@ -46,7 +46,52 @@ def lg : ℕ → ℕ
 | (x + 1) := have (x + 1) / 2 < (x + 1), from nat.div_lt_self' x 0,
     1 + lg ((x + 1)/2)
 
-lemma lg_one : lg 1 = 1 := by { rw lg, norm_num, rw lg, }
+lemma lg_zero : lg 0 = 0 := well_founded.fix_eq _ _ _
+
+lemma lg_one : lg 1 = 1 := by { rw lg, norm_num, exact lg_zero }
+
+lemma lg_by_hand_eq : ∀ x, lg_by_hand x = myF x (λ y h, lg_by_hand y) := well_founded.fix_eq _ _
+
+lemma lg_zero' : lg_by_hand 0 = 0 := lg_by_hand_eq 0
+
+lemma lg_one' : lg_by_hand 1 = 1 := by { rw [lg_by_hand_eq, myF], norm_num, rw lg_zero' }
+
+section underhanded_tricks
+
+def lg2 : ℕ → ℕ
+| 0 := 0
+| 1 := 0
+| (n + 2) :=
+  have h : (n + 2) / 2 = n / 2 + 1 :=
+    nat.add_div_of_dvd_left (dvd_refl 2),
+  have n / 2 + 1 < n + 2 := h ▸ nat.div_lt_self' _ _,
+    1 + lg2 ((n + 2) / 2)
+
+def lg2' : ℕ → ℕ
+| n := if h : n ≤ 1 then 0 else
+ have n / 2 < n, from
+  nat.div_lt_self (by linarith) (nat.le_refl 2),
+  1 + lg2' (n / 2)
+
+def lg2'' : ℕ → ℕ
+| n := if h : n ≤ 1 then 0 else
+ have n / 2 < n, from nat.div_lt_self (by linarith) (nat.le_refl 2),
+ by { exact 1 + lg2'' (n / 2) }
+
+def lg2''' : ℕ → ℕ
+| n := if h : n ≤ 1 then 0 else
+begin
+  exact have n / 2 < n, from nat.div_lt_self (by linarith) (nat.le_refl 2),
+  1 + lg2''' (n / 2),
+end
+
+def foo : ℕ → ℕ
+| n := if h : odd n ∨ n = 0 then 0 else
+ have n / 2 < n, from
+  nat.div_lt_self (nat.pos_of_ne_zero (not_or_distrib.mp h).2) (nat.le_refl 2),
+  1 + foo (n / 2)
+
+end underhanded_tricks
 
 /-!
 ### Proving log inequalities
@@ -110,6 +155,25 @@ lemma lg_lemma2 : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
     specialize lg_lemma2 m, rw [hm, lg, pow_add],
     rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith), rw two_mul_succ_div_two, linarith,
   end )
+
+lemma lg_lemma2' : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
+| 0 := by { rw lg_one, norm_num, }
+| (x + 1) :=
+begin
+  cases (nat.even_or_odd x),
+  { rcases h with ⟨m, hm⟩,
+    rw [hm, lg, pow_add],
+    rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith), norm_num,
+    exact have m < x + 1, by linarith,
+      lg_lemma2' m,
+     },
+  { rcases h with ⟨m, hm⟩,
+    rw [hm, lg, pow_add],
+    rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith),
+    rw two_mul_succ_div_two, 
+    exact have m < x + 1, by linarith,
+     show _, by { specialize lg_lemma2' m, linarith,} }
+end
 
 end logarithms
 
