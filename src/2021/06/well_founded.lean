@@ -1,5 +1,7 @@
 import tactic data.nat.parity tactic.induction
 
+import init.meta.well_founded_tactics
+
 namespace exlean
 
 namespace wf_exlean
@@ -43,7 +45,7 @@ in one step.
 -/
 def lg : ℕ → ℕ
 | 0 := 0
-| (x + 1) := have (x + 1) / 2 < (x + 1), from nat.div_lt_self' x 0,
+| (x + 1) := have (x + 1) / 2 < (x + 1), from nat.div_lt_self' _ _,
     1 + lg ((x + 1)/2)
 
 lemma lg_zero : lg 0 = 0 := well_founded.fix_eq _ _ _
@@ -81,7 +83,8 @@ def lg2'' : ℕ → ℕ
 def lg2''' : ℕ → ℕ
 | n := if h : n ≤ 1 then 0 else
 begin
-  exact have n / 2 < n, from nat.div_lt_self (by linarith) (nat.le_refl 2),
+  exact have n / 2 < n,
+    from nat.div_lt_self (by linarith) (nat.le_refl 2),
   1 + lg2''' (n / 2),
 end
 
@@ -156,6 +159,10 @@ lemma lg_lemma2 : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
     rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith), rw two_mul_succ_div_two, linarith,
   end )
 
+/-
+`lg_lemma2` pushes more of the proof into tactic mode, only coming out of tactic mode to
+prove the recursive application is decreasing.
+-/
 lemma lg_lemma2' : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
 | 0 := by { rw lg_one, norm_num, }
 | (x + 1) :=
@@ -165,8 +172,7 @@ begin
     rw [hm, lg, pow_add],
     rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith), norm_num,
     exact have m < x + 1, by linarith,
-      lg_lemma2' m,
-     },
+      lg_lemma2' m, },
   { rcases h with ⟨m, hm⟩,
     rw [hm, lg, pow_add],
     rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith),
@@ -211,6 +217,31 @@ using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, sqrt n + 
 
 end prime_factors
 
+section using_well_founded_commmand
+
+/-!
+The argument for `using_well_founded`, a term of structure type `well_founded_tactics` is described
+in `init.meta.well_founded_tactics`.
+
+This structure has two fields: `dec_tac` and `rel_tac`. We've seen `rel_tac` already. It's purpose
+is to create a well-founded relation (more precisely, to synthesize a term of type
+`has_well_founded α`, where `α` is the type over which we are recursing).
+
+The `dec_tac` field is used to synthesize a proof that the recursive application is decreasing.
+-/
+
+/--
+`lg_using` is a redefinition of the function `lg` that employs `using_well_founded` to prove the
+recursive application is decreasing.
+-/
+def lg_using : ℕ → ℕ
+| 0 := 0
+| (x + 1) := 
+    1 + lg_using ((x + 1)/2)
+  using_well_founded { dec_tac := `[exact nat.div_lt_self' _ _]}
+
+end using_well_founded_commmand
+
 section quick_sort
 
 /-
@@ -252,12 +283,9 @@ error message, suggesting which inequality you must prove.
 def qsort : list ℕ → list ℕ
 | [] := []
 | (x :: xs) :=
-  let al := at_most_list x xs in
-  let gl := greater_list x xs in
-  have al.length < xs.length + 1 := filter_length_lt _,
-  have gl.length < xs.length + 1 := filter_length_lt _, 
-  qsort al ++ (x :: qsort gl)
-  using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ ys, ys.length)⟩]}
+  qsort (at_most_list x xs) ++ (x :: qsort (greater_list x xs))
+  using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ ys, ys.length)⟩],
+    dec_tac := `[exact filter_length_lt _] }
 
 inductive sorted : list ℕ → Prop
 | nil_sort : sorted []
@@ -335,8 +363,6 @@ end
 lemma qsort_sorted : ∀ xs, sorted (qsort xs) ∧ xs ~ qsort xs
 | [] := by { simp [nil_sort, qsort], }
 | (y :: ys) :=
-have (at_most_list y ys).length < ys.length + 1 := filter_length_lt _,
-have (greater_list y ys).length < ys.length + 1 := filter_length_lt _,
 begin
   rw qsort,  
   have h₁ := qsort_sorted (at_most_list y ys),
@@ -349,7 +375,8 @@ begin
       rw perm.mem_iff h₂.2.symm at hb, dsimp [greater_list] at hb, simp at hb, linarith, }, },
   { exact perm_append_cons (perm.cons y (perm_at_most_append_greater _)) h₁.2 h₂.2, },
 end
-using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ ys, ys.length)⟩]}
+using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ ys, ys.length)⟩],
+  dec_tac := `[exact filter_length_lt _] }
 
 end quick_sort
 
