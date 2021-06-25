@@ -68,6 +68,10 @@ lemma lg_one_bh : lg_by_hand 1 = 1 := by { erw [lg_by_hand_eq, myF, lg_zero_bh] 
 
 section exercises
 
+/-!
+### Some basic exercises
+-/
+
 def ex1 : ℕ → ℕ
 | 0 := 1
 | (x + 1) := have (x + 1) / 3 < x + 1, from nat.div_lt_self' _ _,
@@ -206,7 +210,7 @@ begin
 end
 
 /--
-`lg_lemma2''`
+`lg_lemma2''` is a proof of the lower bound via `using_well_founded`.
 -/
 lemma lg_lemma2'' : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
 | 0 := by { rw lg_one, norm_num, }
@@ -220,6 +224,50 @@ begin
     rw [two_mul_succ_succ, two_mul_succ_div_two], linarith }
 end
 using_well_founded { dec_tac := `[exact show m < x + 1, by linarith] }
+
+section exercises
+
+/-!
+### More exercises
+
+The first exercise is a trivial modification of `lg_lemma2''`, but for the upper bound.
+The second concerns the lower bound for the `lg2` function and requires more thought.
+-/
+
+lemma lg_ub : ∀ (x : ℕ), 2 ^ lg (x + 1) ≤ 2 * (x + 1)
+| 0 := by { rw lg_one, norm_num, }
+| (x + 1) :=
+begin
+  cases (nat.even_or_odd x),
+  { rcases h with ⟨m, hm⟩, specialize lg_ub m, rw [hm, lg, pow_add],
+    rw two_mul_succ_succ, norm_num, exact lg_ub, },
+  { rcases h with ⟨m, hm⟩,
+    specialize lg_ub m, rw [hm, lg, pow_add],
+    rw [two_mul_succ_succ, two_mul_succ_div_two], linarith }
+end
+using_well_founded { dec_tac := `[exact show m < x + 1, by linarith] }
+
+example (a b c : ℕ) : (2 * a + 2) / 2 = a + 1 := by norm_num
+
+/-!
+In the proof below, the `dec_tac` term uses a tactic combinator. Is there a better approach?
+-/
+
+ lemma lg2_lb : ∀ (x : ℕ), (x + 1) < 2 * 2 ^ lg2 (x + 1)
+| 0 := by { rw lg2, norm_num }
+| 1 := by { erw [lg2, lg2], norm_num }
+| (x + 2) :=
+begin
+  cases (nat.even_or_odd x),
+  { rcases h with ⟨m, hm⟩, specialize lg2_lb m, rw [hm, lg2, pow_add],
+    conv_rhs { rw [add_right_comm, two_mul_succ_succ, two_mul_succ_div_two], }, linarith },
+  { rcases h with ⟨m, hm⟩, rw [hm, lg2, two_mul_succ_succ, pow_add, two_mul_succ_succ],
+    rw nat.mul_div_cancel_left _ zero_lt_two, specialize lg2_lb (m + 1), linarith, }
+end
+using_well_founded { dec_tac :=
+  `[ {exact show m + 1 < x + 2, by linarith} <|> exact show m < x + 2, by linarith ] } 
+
+end exercises
 
 end logarithms
 
