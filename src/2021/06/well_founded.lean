@@ -4,16 +4,28 @@ namespace exlean
 
 namespace wf_exlean
 
+/-
+# Well-founded recursion
+-/
+
 section logarithms
 
 /-!
-## Logarithms
+## Logarithms and basic ideas
 
 We define a function `lg` that is (roughly) the base-2 logarithm. More precisely,
 
   `(n + 1) < 2 ^ lg (n + 1) ≤ 2 * (n + 1)`
 
-for every `n : ℕ`. We prove the first of these inequalities.
+for every `n : ℕ`. We prove the first of these inequalities and introduce techniques for
+working with well-founded recursion.
+-/
+
+/-!
+### Definitions and simple proofs
+
+Here are definitions of `lg` (and extensionally-equal variants) via `well_founded.fix` and
+via the equation compiler. We prove such simple results as `lg 1 = 1`.
 -/
 
 /--
@@ -70,6 +82,9 @@ section exercises
 
 /-!
 ### Some basic exercises
+
+The exercises (solutions here, questions in the blog) are to define a function described
+mathematically and then prove simple equations involving the function.
 -/
 
 def ex1 : ℕ → ℕ
@@ -94,6 +109,13 @@ example : ex2 4 = 2 := by { erw [ex2, ex2, ex2], norm_num }
 end exercises
 
 section underhanded_tricks
+
+/-!
+### Underhanded tricks
+
+Various tricks can be employed to simplify use of the equation compiler to define functions that
+depend on well-founded recursion.
+-/
 
 def lg2 : ℕ → ℕ
 | 0 := 0
@@ -124,6 +146,8 @@ begin
 end
 
 end underhanded_tricks
+
+section proving_log_inequalities
 
 /-!
 ### Proving log inequalities
@@ -225,10 +249,12 @@ begin
 end
 using_well_founded { dec_tac := `[exact show m < x + 1, by linarith] }
 
+end proving_log_inequalities
+
 section exercises
 
 /-!
-### More exercises
+### Exercises
 
 The first exercise is a trivial modification of `lg_lemma2''`, but for the upper bound.
 The second concerns the lower bound for the `lg2` function and requires more thought.
@@ -273,7 +299,9 @@ end logarithms
 
 section prime_factors
 
-/-
+/-!
+## Prime factors
+
 The following is adapted from `data.nat.prime` in mathlib. Here the normal `<` relation isn't what
 we want because we're computing `min_fac_aux k` using a value for `min_fac_aux (k + 2)`.
 
@@ -308,6 +336,8 @@ end prime_factors
 section using_well_founded_commmand
 
 /-!
+## The `using_well_founded` command
+
 The argument for `using_well_founded`, a term of structure type `well_founded_tactics` is described
 in `init.meta.well_founded_tactics`.
 
@@ -336,12 +366,20 @@ end using_well_founded_commmand
 
 section quick_sort
 
-/-
-Might want to rewrite this using the definition given in core Lean `data.list.qsort`.
+/-!
 
+## Quick sort
+
+We define `qsort`, the quick sort algorithm and prove that it sorts a list.
+
+Might want to rewrite this using the definition given in core Lean `data.list.qsort`.
 The definition there uses the notion of `partition`.
 
-A good discussion at: http://www.doc.ic.ac.uk/~scd/Dafny_Material/Lectures.pdf.
+Note that mathlib has a defintion of `sorted` that is different from mine. It's in
+`data.list.sort`.
+
+A good discussion of quick sort proof is available at:
+http://www.doc.ic.ac.uk/~scd/Dafny_Material/Lectures.pdf.
 -/
 
 open list
