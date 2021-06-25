@@ -118,7 +118,7 @@ def ex2 : ℕ → ℕ
   nat.div_lt_self (nat.pos_of_ne_zero (not_or_distrib.mp h).2) (nat.le_refl 2),
   1 + ex2 (n / 2)
 
-example : ex2 4 = 2 := by { erw [ex2, ex2, ex2], norm_num }
+lemma ex2_4 : ex2 4 = 2 := by { erw [ex2, ex2, ex2], norm_num }
 
 def ex2_F : Π (x : ℕ) (h : Π (y : ℕ), y < x → ℕ), ℕ
 | n ih := if h : odd n ∨ n = 0 then 0 else
