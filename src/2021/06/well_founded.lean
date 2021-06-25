@@ -1,5 +1,7 @@
 import tactic data.nat.parity tactic.induction
 
+import init.meta.well_founded_tactics
+
 namespace exlean
 
 namespace wf_exlean
@@ -98,6 +100,18 @@ example : ex1 2 = 2 := by { erw [ex1, ex1], norm_num }
 
 example : ex1 4 = 4 := by { erw [ex1, ex1, ex1], norm_num }
 
+def ex1_F : Π (x : ℕ) (h : Π (y : ℕ), y < x → ℕ), ℕ
+| 0 _ := 1
+| (x + 1) h := (x + 1) * (h ((x + 1)/3) (nat.div_lt_self' _ _))
+
+def ex1' := well_founded.fix nat.lt_wf ex1_F
+
+lemma ex1'_eq : ∀ x, ex1' x = ex1_F x (λ y h, ex1' y) := well_founded.fix_eq _ _
+
+lemma ex1'_0 : ex1' 0 = 1 := ex1'_eq 0
+
+lemma ex1'_4 : ex1' 4 = 4 := by { erw [ex1'_eq, ex1_F, ex1'_eq, ex1_F, ex1'_0], norm_num,  }
+
 def ex2 : ℕ → ℕ
 | n := if h : odd n ∨ n = 0 then 0 else
  have n / 2 < n, from
@@ -105,6 +119,22 @@ def ex2 : ℕ → ℕ
   1 + ex2 (n / 2)
 
 example : ex2 4 = 2 := by { erw [ex2, ex2, ex2], norm_num }
+
+def ex2_F : Π (x : ℕ) (h : Π (y : ℕ), y < x → ℕ), ℕ
+| n ih := if h : odd n ∨ n = 0 then 0 else
+  1 + ih (n / 2) (nat.div_lt_self (nat.pos_of_ne_zero (not_or_distrib.mp h).2) (nat.le_refl 2))
+
+def ex2' := well_founded.fix nat.lt_wf ex2_F
+
+lemma ex2'_eq : ∀ x, ex2' x = ex2_F x (λ y h, ex2' y) := well_founded.fix_eq _ _
+
+lemma ex2'_0 : ex2' 0 = 0 := ex2'_eq 0
+
+lemma ex2'_1 : ex2' 1 = 0 := ex2'_eq 1
+
+lemma ex2'_2 : ex2' 2 = 1 := by { erw [ex2'_eq, ex2_F, ex2'_1], norm_num }
+
+lemma ex2'_4 : ex2' 4 = 2 := by { erw [ex2'_eq, ex2_F, ex2'_2], norm_num }
 
 end exercises
 
@@ -323,15 +353,106 @@ This is precisely the assertion of `min_fac_lemma`.
 
 open nat
 
+lemma min_fac_lemma (n k : ℕ) (h : ¬ n < k * k) :
+    sqrt n - k < sqrt n + 2 - k :=
+begin
+  rw nat.sub_lt_sub_right_iff,
+  { exact lt_trans (lt_add_one _) (lt_add_one _) },
+  { rw nat.le_sqrt, exact le_of_not_gt h },
+end
+
 def min_fac_aux (n : ℕ) : ℕ → ℕ | k :=
 if h : n < k * k then n else
 if k ∣ n then k else
-have sqrt n - k < sqrt n + 2 - k, -- needed for wf recursion
-{ rw nat.sub_lt_sub_right_iff, norm_num, rw nat.le_sqrt, exact le_of_not_gt h, },
+have _ := min_fac_lemma n k h, 
 min_fac_aux (k + 2)
-using_well_founded {rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, sqrt n + 2 - k)⟩]}
+using_well_founded {
+  rel_tac := λ _ _,
+    `[exact ⟨_, measure_wf (λ k, sqrt n + 2 - k)⟩]}
+
+lemma min_fac_dvd (n : ℕ) : ∀ (k : ℕ), (min_fac_aux n k) ∣ n
+| k := if h : n < k * k then by { rw min_fac_aux, simp [h] } else 
+  if hk : k ∣ n then by { rw min_fac_aux, simp [h, hk] } else
+  have _ := min_fac_lemma n k h, 
+  by { rw min_fac_aux, simp [h, hk], exact min_fac_dvd (k+2) }
+  using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, sqrt n + 2 - k)⟩]}
 
 end prime_factors
+
+section fermat_factorisation
+
+/-
+## Fermat factorisation
+
+`fermat_fac n` returns a factor of `n` by Fermat factorisation.
+
+It uses a function `fermat_fac_aux` such that `fermat_fac_aux n a` is the Fermat factorisation
+of `n`, starting at `a`. That is, if `n < a`, we return `n`. Otherwise, we test if `bs : =a ^ 2 - n`
+is a perfect square. If `bs` is a perfect square, return `a + sqrt bs`. Otherwise, increment `a`
+by `1` and continue the process.
+-/
+
+open nat
+
+def fermat_fac_aux (n : ℕ) : ℕ → ℕ | a :=
+if h : n < a then n else
+let bs := a * a - n  in
+if (sqrt bs)^2 = bs then a + sqrt bs else
+  have n - a < n + 1 - a, by
+  { rw nat.sub_lt_sub_right_iff, exact lt_add_one _, exact le_of_not_gt h, },
+  fermat_fac_aux (a + 1)
+using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, n + 1 - k)⟩]}
+
+/--
+`fermat_fac n` is the result of applying Fermat factorisation to `n`.
+-/
+def fermat_fac (n : ℕ) := let c := sqrt n in
+  if c^2 = n then c else fermat_fac_aux n (c + 1)
+
+/-!
+If the code below is uncommented, it spits out `3181`, a factor of 9539819.
+-/
+-- #eval fermat_fac 9539819
+
+/--
+`sqrt_tac` is used to prove `sqrt n = u`.
+-/
+meta def sqrt_tac := `[ symmetry, rw nat.eq_sqrt, norm_num ]
+
+example : fermat_fac 9539819 = 3181 :=
+begin
+  rw fermat_fac, dsimp,
+  rw [show sqrt 9539819 = 3088, by sqrt_tac, fermat_fac_aux], norm_num,
+  have foo : ¬ (sqrt 2102 ^ 2 = 2102) := λ h,
+    by { rw show sqrt 2102 = 45, by sqrt_tac at h, norm_num at h },
+  simp only [foo, if_false], clear foo, rw fermat_fac_aux, rw [if_neg], dsimp, rw [if_pos],
+  any_goals { norm_num, try { rw show sqrt 8281 = 91, by sqrt_tac, norm_num }, },
+end
+
+lemma fermat_fac_aux_dvd (n : ℕ) : ∀ (a : ℕ), a * a ≥ n → fermat_fac_aux n a ∣ n
+| a := if h : n < a then by { rw fermat_fac_aux, simp [h] } else
+if hsq : (sqrt (a * a - n))^2 = a * a - n then 
+by { rw fermat_fac_aux, simp [h, hsq],
+  intro hge,
+  use a - sqrt (a * a - n),
+  rw [←nat.sq_sub_sq, hsq, pow_two, nat.sub_sub_self hge] }
+ else  have n - a < n + 1 - a, by
+  { rw nat.sub_lt_sub_right_iff, exact lt_add_one _, exact le_of_not_gt h, },
+ by { intro hge, rw fermat_fac_aux, simp [h, hsq], apply fermat_fac_aux_dvd, linarith }
+using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ k, n + 1 - k)⟩]}
+
+/--
+`fermat_fac n` divides `n`, for every `n`.
+-/
+lemma fermat_fac_dvd (n : ℕ) : fermat_fac n ∣ n :=
+begin
+  rw fermat_fac,
+  by_cases h : (sqrt n) ^ 2 = n,
+  { simp [h], use sqrt n, rw pow_two at h, rw h, },
+  { simp [h], apply fermat_fac_aux_dvd, linarith [succ_le_succ_sqrt n], },
+end
+
+end fermat_factorisation
 
 section using_well_founded_commmand
 
@@ -367,7 +488,6 @@ end using_well_founded_commmand
 section quick_sort
 
 /-!
-
 ## Quick sort
 
 We define `qsort`, the quick sort algorithm and prove that it sorts a list.
