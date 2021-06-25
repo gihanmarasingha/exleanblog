@@ -1,7 +1,5 @@
 import tactic data.nat.parity tactic.induction
 
-import init.meta.well_founded_tactics
-
 namespace exlean
 
 namespace wf_exlean
@@ -48,15 +46,48 @@ def lg : ℕ → ℕ
 | (x + 1) := have (x + 1) / 2 < (x + 1), from nat.div_lt_self' _ _,
     1 + lg ((x + 1)/2)
 
-lemma lg_zero : lg 0 = 0 := well_founded.fix_eq _ _ _
+def jane : ℕ → ℕ
+| 0 := 2
+| (x + 1) := 3 * jane x
 
-lemma lg_one : lg 1 = 1 := by { rw lg, norm_num, exact lg_zero }
+example : jane 3 = 54 := rfl
+
+lemma lg_zero : lg 0 = 0 := by { rw lg }
+
+lemma lg_zero' : lg 0 = 0 := well_founded.fix_eq _ _ _
+
+example : lg_by_hand 0 = well_founded.fix nat.lt_wf myF 0 := rfl
+
+lemma lg_one : lg 1 = 1 := by { erw [lg, lg_zero] }
 
 lemma lg_by_hand_eq : ∀ x, lg_by_hand x = myF x (λ y h, lg_by_hand y) := well_founded.fix_eq _ _
 
-lemma lg_zero' : lg_by_hand 0 = 0 := lg_by_hand_eq 0
+lemma lg_zero_bh : lg_by_hand 0 = 0 := lg_by_hand_eq 0
 
-lemma lg_one' : lg_by_hand 1 = 1 := by { rw [lg_by_hand_eq, myF], norm_num, rw lg_zero' }
+lemma lg_one_bh : lg_by_hand 1 = 1 := by { erw [lg_by_hand_eq, myF, lg_zero_bh] }
+
+section exercises
+
+def ex1 : ℕ → ℕ
+| 0 := 1
+| (x + 1) := have (x + 1) / 3 < x + 1, from nat.div_lt_self' _ _,
+    (x + 1) * ex1 ( (x + 1) / 3)
+
+example : ex1 0 = 1 := by { rw ex1 }
+
+example : ex1 2 = 2 := by { erw [ex1, ex1], norm_num }
+
+example : ex1 4 = 4 := by { erw [ex1, ex1, ex1], norm_num }
+
+def ex2 : ℕ → ℕ
+| n := if h : odd n ∨ n = 0 then 0 else
+ have n / 2 < n, from
+  nat.div_lt_self (nat.pos_of_ne_zero (not_or_distrib.mp h).2) (nat.le_refl 2),
+  1 + ex2 (n / 2)
+
+example : ex2 4 = 2 := by { erw [ex2, ex2, ex2], norm_num }
+
+end exercises
 
 section underhanded_tricks
 
@@ -88,12 +119,6 @@ begin
   1 + lg2''' (n / 2),
 end
 
-def foo : ℕ → ℕ
-| n := if h : odd n ∨ n = 0 then 0 else
- have n / 2 < n, from
-  nat.div_lt_self (nat.pos_of_ne_zero (not_or_distrib.mp h).2) (nat.le_refl 2),
-  1 + foo (n / 2)
-
 end underhanded_tricks
 
 /-!
@@ -109,7 +134,9 @@ begin
   rintros ⟨k, h⟩, exact nat.two_mul_ne_two_mul_add_one h.symm,
 end
 
-def lg_ineq : ℕ → Prop := λ n, n + 1 < 2 ^ lg (n + 1)
+lemma two_mul_succ_succ {m : ℕ} : 2 * m + 1 + 1 = 2 * (m + 1) := by linarith
+
+def lg_ineq (n : ℕ) : Prop := n + 1 < 2 ^ lg (n + 1)
 
 /--
 `lg_lemma_aux` is an auxiliary lemma used to show `lg x` satisfies the desired lower bound on
@@ -124,11 +151,10 @@ begin
   rcases nat.even_or_odd x with ⟨m, rfl⟩ | ⟨m, rfl⟩,
   { have h₄ : m < 2 * m + 1, by linarith,
     specialize h m h₄, rw [nat.succ_eq_add_one, lg, pow_add],
-    rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith), norm_num, exact h, },
+    rw two_mul_succ_succ, norm_num, exact h, },
   { have h₄ : m < 2 * m + 1 + 1, by linarith,
-    specialize h m h₄, rw [lg, pow_add],
-    rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith),
-    rw two_mul_succ_div_two, linarith, }, 
+    specialize h m h₄, rw [lg, pow_add, nat.succ_eq_add_one],
+    rw [two_mul_succ_succ, two_mul_succ_div_two], linarith, }, 
 end
 
 /--
@@ -150,13 +176,13 @@ lemma lg_lemma2 : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
   have m < x + 1, by linarith, -- needed for wf recursion
   begin
     specialize lg_lemma2 m, rw [hm, lg, pow_add],
-    rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith), norm_num, exact lg_lemma2,
+    rw two_mul_succ_succ, norm_num, exact lg_lemma2,
   end )
 ( λ ⟨m, hm⟩,
   have m < x + 1, by linarith, -- needed for wf recursion
   begin
     specialize lg_lemma2 m, rw [hm, lg, pow_add],
-    rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith), rw two_mul_succ_div_two, linarith,
+    rw [two_mul_succ_succ, two_mul_succ_div_two], linarith,
   end )
 
 /-
@@ -170,16 +196,30 @@ begin
   cases (nat.even_or_odd x),
   { rcases h with ⟨m, hm⟩,
     rw [hm, lg, pow_add],
-    rw (show 2 * m + 1 + 1 = 2 * (m + 1), by linarith), norm_num,
+    rw two_mul_succ_succ, norm_num,
     exact have m < x + 1, by linarith,
       lg_lemma2' m, },
   { rcases h with ⟨m, hm⟩,
-    rw [hm, lg, pow_add],
-    rw (show 2 * m + 1 + 1 + 1 = 2 * (m + 1) + 1, by linarith),
-    rw two_mul_succ_div_two, 
+    rw [hm, lg, pow_add, two_mul_succ_succ, two_mul_succ_div_two], 
     exact have m < x + 1, by linarith,
-     show _, by { specialize lg_lemma2' m, linarith,} }
+     show _, by { specialize lg_lemma2' m, linarith }, }
 end
+
+/--
+`lg_lemma2''`
+-/
+lemma lg_lemma2'' : ∀ (x : ℕ), x + 1 < 2 ^ lg (x + 1)
+| 0 := by { rw lg_one, norm_num, }
+| (x + 1) :=
+begin
+  cases (nat.even_or_odd x),
+  { rcases h with ⟨m, hm⟩, specialize lg_lemma2'' m, rw [hm, lg, pow_add],
+    rw two_mul_succ_succ, norm_num, exact lg_lemma2'', },
+  { rcases h with ⟨m, hm⟩,
+    specialize lg_lemma2'' m, rw [hm, lg, pow_add],
+    rw [two_mul_succ_succ, two_mul_succ_div_two], linarith }
+end
+using_well_founded { dec_tac := `[exact show m < x + 1, by linarith] }
 
 end logarithms
 
@@ -236,9 +276,13 @@ recursive application is decreasing.
 -/
 def lg_using : ℕ → ℕ
 | 0 := 0
-| (x + 1) := 
-    1 + lg_using ((x + 1)/2)
-  using_well_founded { dec_tac := `[exact nat.div_lt_self' _ _]}
+| (x + 1) := 1 + lg_using ((x + 1)/2)
+  using_well_founded { dec_tac := `[exact nat.div_lt_self' _ _] }
+
+def lg2_iv : ℕ → ℕ
+| n := if h : n ≤ 1 then 0 else 1 + lg2_iv (n / 2)
+using_well_founded
+{ dec_tac := `[exact nat.div_lt_self (by linarith) (nat.le_refl 2)] }
 
 end using_well_founded_commmand
 
