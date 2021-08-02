@@ -1,11 +1,158 @@
-import tactic
+import tactic tactic.induction
 
 namespace exlean
 
-inductive foob
-  | red : foob
-  | blue (n : nat) : foob
-  | green (a : ℕ) (b : ℤ) : foob → foob → foob
+inductive fuzzy
+  | yes : fuzzy
+  | no : fuzzy
+  | meh : fuzzy
+
+example : Type := fuzzy
+
+open fuzzy
+
+namespace fuzzy
+
+universe u
+
+def fuzzy.rec_on' {C : fuzzy → Sort u} (t : fuzzy) (h₀ : C yes) (h₁ : C no) (h₂ : C meh) : C t :=
+  fuzzy.rec_on t h₀ h₁ h₂
+
+example : fuzzy := yes
+
+def tea (t : fuzzy) : string :=
+fuzzy.rec_on t "Here's your tea!" "Get out." "Are you sure?"
+
+example : tea yes = "Here's your tea!" := rfl
+
+def tea2 (t : fuzzy) : string :=
+@fuzzy.rec_on (λ x, string) t "Here's your tea!" "Get out." "Are you sure?"
+
+def tea3 (t : fuzzy) : string :=
+begin
+  cases t,
+  { exact "Here's your tea!" },
+  { exact "Get out." },
+  { exact "Are you sure?"}
+end
+
+def tea4 : fuzzy → string
+  | yes := "Here's your tea!"
+  | no  := "Get out."
+  | meh := "Are you sure?"
+
+def tea5 (f : fuzzy) : string :=
+"My response to your response is: '" ++
+match f with
+  | yes := "Here's your tea!"
+  | no  := "Get out."
+  | meh := "Are you sure?"
+end
+++ "' "
+
+#eval tea5 yes
+
+lemma only_ynm (t : fuzzy) : t = yes ∨ t = no ∨ t = meh :=
+fuzzy.rec_on t (or.inl rfl) (or.inr $ or.inl rfl) (or.inr $ or.inr rfl)
+
+def C_only_ynm := λ (x : fuzzy), x = yes ∨ x = no ∨ x = meh
+
+lemma only_ynm2 (t : fuzzy) : t = yes ∨ (t = no ∨ t = meh) :=
+@fuzzy.rec_on C_only_ynm t (or.inl rfl) (or.inr $ or.inl rfl) (or.inr $ or.inr rfl)
+
+lemma only_ynm3 (t : fuzzy) : t = yes ∨ t = no ∨ t = meh :=
+begin
+  apply fuzzy.rec_on t,
+  { left, refl, },
+  { right, left, refl, },
+  { right, right, refl, },
+end
+
+lemma only_ynm4 (t : fuzzy) : t = yes ∨ t = no ∨ t = meh :=
+begin
+  cases t,
+  { left, refl, },
+  { right, left, refl, },
+  { right, right, refl, },
+end
+
+lemma only_ynm5 (t : fuzzy) : t = yes ∨ t = no ∨ t = meh := by { cases t; tauto }
+
+def yes_no : ¬ yes = no .
+
+def yes_no2 : ¬ yes = no := assume h : yes = no, fuzzy.no_confusion h
+
+def yes_no3 : ¬ yes = no := assume h : yes = no, @fuzzy.no_confusion false yes no h
+
+def f_no_confusion_type_full : Sort u → fuzzy → fuzzy → Sort u :=
+λ (P : Sort u) (v₁ v₂ : fuzzy),
+  @fuzzy.rec_on (λ (v₁ : fuzzy), Sort u) v₁
+    (@fuzzy.rec_on (λ (v₁ : fuzzy), Sort u) v₂ (P → P) P P)
+    (@fuzzy.rec_on (λ (v₁ : fuzzy), Sort u) v₂ P (P → P) P)
+    (@fuzzy.rec_on (λ (v₁ : fuzzy), Sort u) v₂ P P (P → P))
+
+def f_no_confusion_type : Sort u → fuzzy → fuzzy → Sort u :=
+λ (P : Sort u) (v₁ v₂ : fuzzy),
+  fuzzy.rec_on v₁
+    (fuzzy.rec_on v₂ (P → P) P P)
+    (fuzzy.rec_on v₂ P (P → P) P)
+    (fuzzy.rec_on v₂ P P (P → P))
+
+def f_no_confusion : Π {P : Sort u} {v₁ v₂ : fuzzy}, v₁ = v₂ → f_no_confusion_type P v₁ v₂ :=
+λ {P : Sort u} {v₁ v₂ : fuzzy} (h : v₁ = v₂),
+  eq.rec_on h (λ (h₂ : v₁ = v₁), fuzzy.rec_on v₁ (λ (a : P), a) (λ (a : P), a) (λ (a : P), a)) h
+
+end fuzzy
+
+namespace staff
+
+inductive staff
+  | hod : staff
+  | doctor (n : fuzzy) : staff
+  | secretary (id : ℕ) (boss : staff) : staff
+
+example : Type := staff
+
+open staff fuzzy
+
+def jill : staff := hod
+
+def dr_no : staff := doctor no
+
+def dr_meh : staff := doctor meh
+
+def justin : staff := secretary 10 jill
+
+def selima : staff := secretary 5 dr_no
+
+def gursel : staff := secretary 7 selima
+
+def salary : staff → ℚ
+  | hod := 500000
+  | (doctor yes) := 100000
+  | (doctor _) := 5000
+  | (secretary num boss) := 1 / num + (salary boss) / 2
+
+example : salary dr_meh = 5000 := rfl
+
+example : salary selima = 12501 / 5 := by { dsimp [selima, dr_no, salary], norm_num }
+
+def salary2 (s : staff) : ℚ := staff.rec_on s
+  500000 (λ (f : fuzzy), f.rec_on 100000 5000 5000)
+  (λ (n : ℕ) (boss : staff) (bs : ℚ), 1 / n + bs / 2)
+
+def salary3 (s : staff) : ℚ := staff.rec_on s
+  500000 (λ f, f.rec_on 100000 5000 5000)
+  (λ n _ bs, 1 / n + bs / 2)
+
+def salary_new : staff → ℚ
+  | hod := 500000
+  | (doctor yes) := 100000
+  | (doctor _) := 5000
+  | (secretary 0 boss) := (salary_new boss) / 200
+  | (secretary (n+1) boss) := 1 / n + salary_new (secretary n boss)
+
+end staff
 
 section inductive_propositions
 
@@ -13,9 +160,13 @@ section inductive_propositions
 The following defintions `myor` and `myand` are quite different from the definitions `and` and `or`.
 In particular, for each `α β : Prop`, `myand α β : Type`, whereas `and α β : Prop`.
 -/
+
+-- `myor` and `myand` ARE NOT INDUCTIVELY-DEFINED PROPOSITIONS!!!
 inductive myor (α β : Prop)
   | inl (h : α) : myor
   | inr (h : β) : myor
+
+example : Prop → Prop → Type := myor
 
 inductive myand (α β : Prop)
   | intro (left : α) (right : β) : myand
@@ -69,10 +220,27 @@ section less_than_or_equal
 
 open nat
 
+/-!
+We look at two defintions of `le`. The first is the standard defintion found in Lean. With this
+definition, `le` is a family of inductive types.
+-/
 inductive le (a : ℕ) : ℕ → Prop
   | refl : le a
   | step : ∀ {b}, le b → le (succ b)
 
+/-!
+The definition above leads to an elimination principle. Suppose we have `h : x ≤ y` and we want
+to prove `P y`, for some predicate `P`. We can do this by considering separately the two possible
+ways in which `h` could have been constructed.
+
+1. `h` could be the result of `refl`. In which case, `y` is `x` and we have to prove `P x`.
+2. `h` could be the result of `step`. Then there is some `t` for which `y` is `succ t` and we know
+`x ≤ t`. Thus, we need to prove for every `t : ℕ`, given `x ≤ t`, given `P t`, we have `P (succ t)`.
+-/
+
+/-!
+Here's another definition `le'`.
+-/
 inductive le' : ℕ → ℕ → Prop
   | refl : ∀ (a : ℕ), le' a a
   | step : ∀ (a b : ℕ), le' a b → le' a (succ b)
@@ -224,7 +392,6 @@ example : tree1 = tree1' := rfl
 def tree2' := list_to_tree [30,10,5,20]
 
 #reduce tree2'
-
 
 example (xs : list ℕ) (x : ℕ) : ∃ l r, list_to_tree (xs ++ [x]) = node x l r :=
 begin
