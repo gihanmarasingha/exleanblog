@@ -1,3 +1,5 @@
+import data.int.basic
+
 inductive mynat : Type
   | O : mynat
   | S : mynat → mynat
@@ -249,8 +251,6 @@ example : mynat.no_confusion_type' P O.S O.S = ((O = O → P) → P) := rfl
 
 example : mynat.no_confusion_type' P O.S.S O.S.S = ((O.S = O.S → P) → P) := rfl
 
-#reduce mynat.no_confusion_type P O O
-
 end testing_no_confusion_type'
 
 /--
@@ -311,3 +311,62 @@ def myid {P} : P → P := @nat.no_confusion P 0 0 rfl
 example {P : Type*} : @myid P = @id P := funext (λ _, rfl)
 
 end no_confusion_complicated
+
+
+/-
+## No confusion for integers
+-/
+
+
+inductive myint : Type
+| f : ℕ → myint
+| g : ℕ → myint
+
+/-
+Let `n` be natural number. We'll think of `f(n)` as the integer `n` and of `g(n)` as the
+integer `-(1 + n)`.
+
+We'll show `f` is injective.
+-/
+
+namespace myint
+
+open myint
+
+/-
+## Using built in
+We'll start by using the built in `myint.no_confusion` function to prove that `f` is injective.
+-/
+
+namespace built_in
+
+universe u
+
+variables (T : Sort u) (a b : ℕ)
+
+example : myint.no_confusion_type T (f a) (f b) = ((a = b → T) → T) := rfl
+
+example (m n : ℕ) (h : f(m) = f(n)) : ((m = n → T) → T) := @myint.no_confusion T _ _ h
+
+lemma f_inj {m n : ℕ} (h : f(m) = f(n)) : m = n := myint.no_confusion h id
+
+end built_in
+
+/-
+## Showing injectivity from scratch
+-/
+
+namespace f_inj_from_scratch
+
+def P : myint → myint → Prop
+| (f a) (f b) := a = b 
+| _     _     := true
+
+lemma f_inj {m n : ℕ} (h : f(m) = f(n)) : m = n :=
+show P (f m) (f n), from
+have h₂ : P (f m) (f m), from @rfl _ _,
+h ▸ h₂
+
+end f_inj_from_scratch
+
+end myint
