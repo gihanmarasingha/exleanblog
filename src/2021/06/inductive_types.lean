@@ -253,6 +253,10 @@ local infix ` ≤ ` := le
 
 #check @le.rec_on
 
+#check eq.refl
+
+#check @list.cons
+
 example (a b c : ℕ) (hab : le a b) (hbc : le b c) : le a c := le.rec_on hbc hab
   (λ d hbd had, by { apply le.step, exact had})
 
