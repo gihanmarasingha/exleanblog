@@ -20,6 +20,9 @@ instance listFunctor : Functor α β list := ⟨list.map⟩
 
 #check list
 
+def boo : functor list :=
+{ map := λ α β, list.map,
+  map_const := λ α β x ys, [x] }
 
 
 
